@@ -1,4 +1,18 @@
 services:
+  backend:
+    build: .
+    container_name: voyage-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://voyage_user:voyage_pass@postgres:5432/voyage_db
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+      - /app/node_modules
+
   postgres:
     image: postgres:16
     container_name: voyage-postgres
