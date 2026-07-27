@@ -1,0 +1,42 @@
+services:
+  backend:
+    build: .
+    container_name: voyage-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://voyage_user:voyage_pass@postgres:5432/voyage_db
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  postgres:
+    image: postgres:16
+    container_name: voyage-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voyage_user
+      POSTGRES_PASSWORD: voyage_pass
+      POSTGRES_DB: voyage_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: voyage-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@voyage.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
