@@ -1,0 +1,15 @@
+model MapPoint {
+  id           String   @id @default(uuid())
+  widgetId     String   @map("widget_id")
+  roomMemberId String   @map("room_member_id")
+  lat          Float
+  lng          Float
+  title        String
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  widget     Widget     @relation(fields: [widgetId], references: [id])
+  roomMember RoomMember @relation(fields: [roomMemberId], references: [id])
+
+  @@map("map_points")
+}

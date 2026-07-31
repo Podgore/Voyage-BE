@@ -1,0 +1,33 @@
+model Room {
+  id         String   @id @default(uuid())
+  name       String
+  inviteCode String   @unique @map("invite_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  members RoomMember[]
+  widgets Widget[]
+
+  @@map("rooms")
+}
+
+model RoomMember {
+  id       String    @id @default(uuid())
+  userId   String    @map("user_id")
+  roomId   String    @map("room_id")
+  role     String    @default("member")
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  expenseShares ExpenseShare[]
+  tasksCreated  Task[]        @relation("TaskCreatedBy")
+  tasksAssigned Task[]        @relation("TaskAssignedTo")
+  mapPoints     MapPoint[]
+  notes         Note[]
+  chatMessages  ChatMessage[]
+
+  @@unique([userId, roomId])
+  @@map("room_members")
+}

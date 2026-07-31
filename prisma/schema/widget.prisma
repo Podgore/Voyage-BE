@@ -1,0 +1,18 @@
+model Widget {
+  id       String  @id @default(uuid())
+  roomId   String  @map("room_id")
+  type     String
+  name     String
+  settings Json?
+
+  room Room @relation(fields: [roomId], references: [id])
+
+  expenses     Expense[]
+  tasks        Task[]
+  mapPoints    MapPoint[]
+  notes        Note[]
+  chatMessages ChatMessage[]
+
+  @@unique([roomId, type])
+  @@map("widgets")
+}
