@@ -24,7 +24,7 @@ npm run start:dev
 npm run start:prod
 ```
 
-The server runs on `http://localhost:3000` by default.
+The server runs on `http://localhost:3000/health` by default.
 
 ## Health check
 
