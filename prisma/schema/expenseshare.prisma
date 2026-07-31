@@ -1,0 +1,13 @@
+model ExpenseShare {
+  id           String   @id @default(uuid())
+  expenseId    String   @map("expense_id")
+  roomMemberId String   @map("room_member_id")
+  amountOwed   Decimal  @map("amount_owed")
+  isPaid       Boolean  @default(false) @map("is_paid")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  expense    Expense    @relation(fields: [expenseId], references: [id])
+  roomMember RoomMember @relation(fields: [roomMemberId], references: [id])
+
+  @@map("expense_shares")
+}

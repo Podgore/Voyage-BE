@@ -1,0 +1,16 @@
+model Task {
+  id           String   @id @default(uuid())
+  widgetId     String   @map("widget_id")
+  createdById  String   @map("created_by_id")
+  assignedToId String   @map("assigned_to_id")
+  status       String   @default("pending")
+  title        String
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  widget     Widget     @relation(fields: [widgetId], references: [id])
+  createdBy  RoomMember @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  assignedTo RoomMember @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+
+  @@map("tasks")
+}
