@@ -45,6 +45,8 @@ jobs:
       - run: npm run test
 
       - run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/voyage_test
 
       - run: npm run test:cov
 
