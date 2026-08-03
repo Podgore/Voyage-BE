@@ -7,9 +7,19 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import {
+  ERROR_MESSAGES,
+  VALIDATION_ERROR_MESSAGES,
+} from '../constants/error-messages.constants';
 
 type HttpExceptionResponse = {
   message?: string | string[];
+};
+
+type ErrorResponse = {
+  status: number;
+  message: string;
+  details: string[] | null;
 };
 
 @Catch()
@@ -18,34 +28,68 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const isHttpException = exception instanceof HttpException;
-    const status = isHttpException
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
-    const exceptionResponse = isHttpException ? exception.getResponse() : null;
-    const rawMessage =
-      typeof exceptionResponse === 'object' && exceptionResponse !== null
-        ? (exceptionResponse as HttpExceptionResponse).message
-        : exceptionResponse;
-    const isValidationError = Array.isArray(rawMessage);
-    const isServerError = status >= 500;
 
-    if (!isHttpException) {
+    if (!(exception instanceof HttpException)) {
       this.logger.error(
         exception instanceof Error ? exception.stack : String(exception),
       );
     }
 
-    response.status(status).json({
-      code: status,
-      message: isValidationError
-        ? 'Validation failed'
-        : typeof rawMessage === 'string'
-          ? rawMessage
-          : isServerError
-            ? 'Internal server error'
-            : 'Request failed',
-      details: isValidationError ? rawMessage : null,
+    const errorResponse = this.getErrorResponse(exception);
+
+    response.status(errorResponse.status).json({
+      code: errorResponse.status,
+      message: errorResponse.message,
+      details: errorResponse.details,
     });
+  }
+
+  private getErrorResponse(exception: unknown): ErrorResponse {
+    if (!(exception instanceof HttpException)) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        details: null,
+      };
+    }
+
+    const status = exception.getStatus();
+    const message = this.getExceptionMessage(exception.getResponse());
+
+    if (Array.isArray(message)) {
+      return {
+        status,
+        message: ERROR_MESSAGES.VALIDATION_FAILED,
+        details: message.map((validationMessage) =>
+          this.getValidationMessage(validationMessage),
+        ),
+      };
+    }
+
+    return {
+      status,
+      message: message ?? this.getDefaultMessage(status),
+      details: null,
+    };
+  }
+
+  private getExceptionMessage(
+    exceptionResponse: string | object,
+  ): string | string[] | undefined {
+    if (typeof exceptionResponse === 'string') {
+      return exceptionResponse;
+    }
+
+    return (exceptionResponse as HttpExceptionResponse).message;
+  }
+
+  private getDefaultMessage(status: number): string {
+    return status >= 500
+      ? ERROR_MESSAGES.INTERNAL_SERVER_ERROR
+      : ERROR_MESSAGES.REQUEST_FAILED;
+  }
+
+  private getValidationMessage(message: string): string {
+    return VALIDATION_ERROR_MESSAGES[message] ?? message;
   }
 }

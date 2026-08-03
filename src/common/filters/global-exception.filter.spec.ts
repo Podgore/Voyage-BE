@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { ERROR_MESSAGES } from '../constants/error-messages.constants';
 import { GlobalExceptionFilter } from './global-exception.filter';
 
 describe('GlobalExceptionFilter', () => {
@@ -34,8 +35,8 @@ describe('GlobalExceptionFilter', () => {
     expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(response.json).toHaveBeenCalledWith({
       code: HttpStatus.BAD_REQUEST,
-      message: 'Validation failed',
-      details: ['email must be an email'],
+      message: ERROR_MESSAGES.VALIDATION_FAILED,
+      details: [ERROR_MESSAGES.INVALID_EMAIL],
     });
   });
 
@@ -51,7 +52,7 @@ describe('GlobalExceptionFilter', () => {
     );
     expect(response.json).toHaveBeenCalledWith({
       code: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Internal server error',
+      message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
       details: null,
     });
   });
