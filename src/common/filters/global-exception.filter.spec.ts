@@ -45,7 +45,7 @@ describe('GlobalExceptionFilter', () => {
     const filter = new GlobalExceptionFilter();
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
-    filter.catch(new Error('database connection failed'), host);
+    filter.catch(new Error('Database connection failed'), host);
 
     expect(response.status).toHaveBeenCalledWith(
       HttpStatus.INTERNAL_SERVER_ERROR,
