@@ -7,6 +7,7 @@ model Expense {
   createdAt   DateTime @default(now()) @map("created_at")
 
   widget Widget         @relation(fields: [widgetId], references: [id])
+  payer  RoomMember     @relation("ExpensePayer", fields: [payerId], references: [id])
   shares ExpenseShare[]
 
   @@map("expenses")

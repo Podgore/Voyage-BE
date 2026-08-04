@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { envValidationSchema } from './config/env.validation';
 import { AuthModule } from './auth/auth.module';
+import { LoggerModule } from 'nestjs-pino';
 
 @Module({
   imports: [
@@ -14,6 +15,25 @@ import { AuthModule } from './auth/auth.module';
       },
     }),
     AuthModule,
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        pinoHttp: {
+          level: config.get<string>('LOG_LEVEL') || 'info',
+          transport:
+            process.env.NODE_ENV !== 'production'
+              ? {
+                  target: 'pino-pretty',
+                  options: {
+                    colorize: true,
+                    singleLine: true,
+                    translateTime: 'HH:MM:ss',
+                  },
+                }
+              : undefined,
+        },
+      }),
+    }),
   ],
   controllers: [AppController],
 })
