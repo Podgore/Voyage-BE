@@ -26,11 +26,11 @@ describe('GlobalExceptionFilter', () => {
     return { host, response };
   };
 
-  it('maps validation errors to a consistent 400 response', () => {
+  it('returns a 400 response when email validation fails', () => {
     const { host, response } = createHost();
     const filter = new GlobalExceptionFilter();
 
-    filter.catch(new BadRequestException(['email must be an email']), host);
+    filter.catch(new BadRequestException([ERROR_MESSAGES.INVALID_EMAIL]), host);
 
     expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(response.json).toHaveBeenCalledWith({

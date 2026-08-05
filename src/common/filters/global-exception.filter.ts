@@ -9,7 +9,7 @@ import {
 import { Response } from 'express';
 import {
   ERROR_MESSAGES,
-  VALIDATION_ERROR_MESSAGES,
+  VALIDATION_CONSTRAINT_MESSAGES,
 } from '../constants/error-messages.constants';
 import { ErrorResponse } from '../types/error-response.type';
 import { HttpExceptionResponse } from '../types/http-exception-response.type';
@@ -82,6 +82,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   private getValidationMessage(message: string): string {
-    return VALIDATION_ERROR_MESSAGES[message] ?? message;
+    return VALIDATION_CONSTRAINT_MESSAGES[message] ?? message;
   }
 }
