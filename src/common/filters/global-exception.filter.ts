@@ -11,16 +11,8 @@ import {
   ERROR_MESSAGES,
   VALIDATION_ERROR_MESSAGES,
 } from '../constants/error-messages.constants';
-
-type HttpExceptionResponse = {
-  message?: string | string[];
-};
-
-type ErrorResponse = {
-  status: number;
-  message: string;
-  details: string[] | null;
-};
+import { ErrorResponse } from '../types/error-response.type';
+import { HttpExceptionResponse } from '../types/http-exception-response.type';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
