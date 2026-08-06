@@ -1,3 +1,5 @@
+Ось повний оновлений README з доданою секцією Authentication:
+
 # Voyage-BE
 
 Backend service built with [NestJS](https://nestjs.com/).
@@ -40,34 +42,63 @@ npm run test
 npm run test:e2e
 ```
 
+## Authentication
+
+JWT-based authentication using access and refresh tokens.
+
+Required environment variables (see `.env.example`):
+
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `JWT_ACCESS_EXPIRES_IN`
+- `JWT_REFRESH_EXPIRES_IN`
+
+Passwords are hashed with bcrypt before being stored (see `src/auth/utils/hash.util.ts`).
+
+Use `JwtAuthGuard` to protect any controller route:
+
+```typescript
+@UseGuards(JwtAuthGuard)
+@Get('protected-route')
+getProtected() { ... }
+```
 
 ## Database migrations (Prisma)
 
 Requires `DATABASE_URL` set in `.env` (see `.env.example` for the format).
 
 ### Generate & apply a new migration
+
 ```bash
 npx prisma migrate dev --name <migration_name>
 ```
+
 Creates a new migration file based on schema changes and applies it to the database.
 
 ### Apply pending migrations (production/CI)
+
 ```bash
 npx prisma migrate deploy
 ```
 
 ### Revert / reset database
+
 Prisma does not support automatic single-step rollback. To revert:
+
 ```bash
 npx prisma migrate reset
 ```
+
 This drops the database, reapplies all migrations from scratch, and re-seeds if a seed script exists.
 
 ### Regenerate Prisma Client
+
 ```bash
 npx prisma generate
 ```
+
 Run this after any change to `prisma/schema.prisma`.
+
 ## Local Database
 
 This project uses PostgreSQL through Docker Compose. pgAdmin is also included so you can look at the database visually (optional, but convenient).

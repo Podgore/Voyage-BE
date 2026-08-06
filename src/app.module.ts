@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { envValidationSchema } from './config/env.validation';
+import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from 'nestjs-pino';
 
 @Module({
@@ -13,6 +14,7 @@ import { LoggerModule } from 'nestjs-pino';
         abortEarly: false,
       },
     }),
+    AuthModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
