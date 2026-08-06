@@ -5,7 +5,3 @@ export const ERROR_MESSAGES = {
   REQUEST_FAILED: 'Request failed',
   DATABASE_CONNECTION_FAILED: 'Database connection failed',
 } as const;
-
-export const VALIDATION_CONSTRAINT_MESSAGES: Record<string, string> = {
-  'email must be an email': ERROR_MESSAGES.INVALID_EMAIL,
-};

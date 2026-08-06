@@ -7,10 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
-import {
-  ERROR_MESSAGES,
-  VALIDATION_CONSTRAINT_MESSAGES,
-} from '../constants/error-messages.constants';
+import { ERROR_MESSAGES } from '../constants/error-messages.constants';
 import { ErrorResponse } from '../types/error-response.type';
 import { HttpExceptionResponse } from '../types/http-exception-response.type';
 
@@ -52,9 +49,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return {
         status,
         message: ERROR_MESSAGES.VALIDATION_FAILED,
-        details: message.map((validationMessage) =>
-          this.getValidationMessage(validationMessage),
-        ),
+        details: message,
       };
     }
 
@@ -79,9 +74,5 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return status >= 500
       ? ERROR_MESSAGES.INTERNAL_SERVER_ERROR
       : ERROR_MESSAGES.REQUEST_FAILED;
-  }
-
-  private getValidationMessage(message: string): string {
-    return VALIDATION_CONSTRAINT_MESSAGES[message] ?? message;
   }
 }
