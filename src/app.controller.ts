@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { HealthResponseDto } from './health/dto/health-response.dto';
+import { ExampleDto } from './common/dto/example.dto';
 @ApiTags('Health')
 @Controller()
 export class AppController {
@@ -12,5 +13,11 @@ export class AppController {
   })
   getHealth(): HealthResponseDto {
     return { status: 'ok' };
+  }
+
+  @Post('example')
+  @ApiOperation({ summary: 'Example endpoint to test global validation' })
+  createExample(@Body() dto: ExampleDto) {
+    return dto;
   }
 }
