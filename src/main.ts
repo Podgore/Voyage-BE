@@ -15,6 +15,7 @@ async function bootstrap() {
       .setDescription('Voyage backend API documentation')
       .setVersion('1.0')
       .addTag('Health')
+      .addBearerAuth()
       .build();
 
     const documentFactory = () => SwaggerModule.createDocument(app, config);
