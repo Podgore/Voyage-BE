@@ -1,15 +1,14 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-
-interface AuthenticatedRequest {
-  user?: { userId: string; email: string };
-  params: { roomId?: string };
-}
+import { ERROR_MESSAGES } from '../../common/constants/error-messages.constants';
+import { AuthenticatedRequest } from '../interfaces/authenticated-request.interface';
 
 @Injectable()
 export class RoomOwnerGuard implements CanActivate {
@@ -21,11 +20,11 @@ export class RoomOwnerGuard implements CanActivate {
     const roomId = request.params.roomId;
 
     if (!userId) {
-      throw new ForbiddenException('User is not authenticated');
+      throw new UnauthorizedException(ERROR_MESSAGES.USER_NOT_AUTHENTICATED);
     }
 
     if (!roomId) {
-      throw new ForbiddenException('roomId param is missing');
+      throw new BadRequestException(ERROR_MESSAGES.ROOM_ID_MISSING);
     }
 
     const membership = await this.prisma.roomMember.findFirst({
@@ -38,7 +37,7 @@ export class RoomOwnerGuard implements CanActivate {
     });
 
     if (!membership) {
-      throw new ForbiddenException('You must be the room owner');
+      throw new ForbiddenException(ERROR_MESSAGES.NOT_ROOM_OWNER);
     }
 
     return true;

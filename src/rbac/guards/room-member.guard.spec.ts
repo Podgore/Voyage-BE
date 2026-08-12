@@ -1,18 +1,26 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { RoomMemberGuard } from './room-member.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 
 describe('RoomMemberGuard', () => {
   let guard: RoomMemberGuard;
   let prisma: { roomMember: { findFirst: jest.Mock } };
+  let userId: string;
+  let roomId: string;
 
   const createContext = (
     user?: { userId: string },
-    roomId?: string,
+    testRoomId?: string,
   ): ExecutionContext => {
     const request = {
       user,
-      params: { roomId },
+      params: { roomId: testRoomId },
     };
     return {
       switchToHttp: () => ({
@@ -22,6 +30,8 @@ describe('RoomMemberGuard', () => {
   };
 
   beforeEach(() => {
+    userId = randomUUID();
+    roomId = randomUUID();
     prisma = {
       roomMember: {
         findFirst: jest.fn(),
@@ -30,37 +40,37 @@ describe('RoomMemberGuard', () => {
     guard = new RoomMemberGuard(prisma as unknown as PrismaService);
   });
 
-  it('throws ForbiddenException when user is not authenticated', async () => {
-    const context = createContext(undefined, 'room-1');
+  it('throws UnauthorizedException when user is not authenticated', async () => {
+    const context = createContext(undefined, roomId);
 
     await expect(guard.canActivate(context)).rejects.toThrow(
-      ForbiddenException,
+      UnauthorizedException,
     );
   });
 
-  it('throws ForbiddenException when roomId param is missing', async () => {
-    const context = createContext({ userId: 'user-1' }, undefined);
+  it('throws BadRequestException when roomId param is missing', async () => {
+    const context = createContext({ userId }, undefined);
 
     await expect(guard.canActivate(context)).rejects.toThrow(
-      ForbiddenException,
+      BadRequestException,
     );
   });
 
   it('throws ForbiddenException when user is not an active member', async () => {
     prisma.roomMember.findFirst.mockResolvedValue(null);
-    const context = createContext({ userId: 'user-1' }, 'room-1');
+    const context = createContext({ userId }, roomId);
 
     await expect(guard.canActivate(context)).rejects.toThrow(
       ForbiddenException,
     );
     expect(prisma.roomMember.findFirst).toHaveBeenCalledWith({
-      where: { roomId: 'room-1', userId: 'user-1', leftAt: null },
+      where: { roomId, userId, leftAt: null },
     });
   });
 
   it('returns true when user is an active member', async () => {
-    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
-    const context = createContext({ userId: 'user-1' }, 'room-1');
+    prisma.roomMember.findFirst.mockResolvedValue({ id: randomUUID() });
+    const context = createContext({ userId }, roomId);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
