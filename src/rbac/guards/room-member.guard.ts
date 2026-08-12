@@ -1,44 +1,19 @@
-import {
-  BadRequestException,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../../common/constants/error-messages.constants';
-import { AuthenticatedRequest } from '../interfaces/authenticated-request.interface';
+import { BaseRoomAccessGuard } from './base-room-access.guard';
 
 @Injectable()
-export class RoomMemberGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+export class RoomMemberGuard extends BaseRoomAccessGuard {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const userId = request.user?.userId;
-    const roomId = request.params.roomId;
+  protected getRoleFilter() {
+    return {};
+  }
 
-    if (!userId) {
-      throw new UnauthorizedException(ERROR_MESSAGES.USER_NOT_AUTHENTICATED);
-    }
-
-    if (!roomId) {
-      throw new BadRequestException(ERROR_MESSAGES.ROOM_ID_MISSING);
-    }
-
-    const membership = await this.prisma.roomMember.findFirst({
-      where: {
-        roomId,
-        userId,
-        leftAt: null,
-      },
-    });
-
-    if (!membership) {
-      throw new ForbiddenException(ERROR_MESSAGES.NOT_ROOM_MEMBER);
-    }
-
-    return true;
+  protected getAccessDeniedMessage() {
+    return ERROR_MESSAGES.NOT_ROOM_MEMBER;
   }
 }
