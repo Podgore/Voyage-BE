@@ -13,7 +13,7 @@ export class RoomOwnerGuard extends BaseRoomAccessGuard {
     return { role: 'owner' };
   }
 
-  protected getAccessDeniedMessage() {
-    return ERROR_MESSAGES.NOT_ROOM_OWNER;
+  protected getAccessDeniedMessage(userId: string) {
+    return ERROR_MESSAGES.NOT_ROOM_OWNER(userId);
   }
 }

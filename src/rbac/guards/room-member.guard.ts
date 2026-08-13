@@ -13,7 +13,7 @@ export class RoomMemberGuard extends BaseRoomAccessGuard {
     return {};
   }
 
-  protected getAccessDeniedMessage() {
-    return ERROR_MESSAGES.NOT_ROOM_MEMBER;
+  protected getAccessDeniedMessage(userId: string) {
+    return ERROR_MESSAGES.NOT_ROOM_MEMBER(userId);
   }
 }

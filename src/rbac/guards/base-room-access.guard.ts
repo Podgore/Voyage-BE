@@ -13,7 +13,7 @@ export abstract class BaseRoomAccessGuard implements CanActivate {
   protected constructor(protected readonly prisma: PrismaService) {}
 
   protected abstract getRoleFilter(): { role?: string };
-  protected abstract getAccessDeniedMessage(): string;
+  protected abstract getAccessDeniedMessage(userId: string): string;
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -38,7 +38,7 @@ export abstract class BaseRoomAccessGuard implements CanActivate {
     });
 
     if (!membership) {
-      throw new ForbiddenException(this.getAccessDeniedMessage());
+      throw new ForbiddenException(this.getAccessDeniedMessage(userId));
     }
 
     return true;
