@@ -4,4 +4,10 @@ export const ERROR_MESSAGES = {
   INTERNAL_SERVER_ERROR: 'Internal server error',
   REQUEST_FAILED: 'Request failed',
   DATABASE_CONNECTION_FAILED: 'Database connection failed',
+  USER_NOT_AUTHENTICATED: 'User is not authenticated',
+  ROOM_ID_MISSING: 'roomId param is missing',
+  NOT_ROOM_MEMBER: (userId: string) =>
+    `User with current id ${userId} is not a member of this room`,
+  NOT_ROOM_OWNER: (userId: string) =>
+    `User with current id ${userId} is not the owner of this room`,
 } as const;
