@@ -15,19 +15,13 @@ describe('RoomMembershipIntegrityService', () => {
     roomMember: { findMany: jest.Mock };
   };
 
-  let roomAId: string;
-  let roomBId: string;
-  let widgetInRoomAId: string;
-  let memberOfRoomAId: string;
-  let memberOfRoomBId: string;
+  const roomAId = randomUUID();
+  const roomBId = randomUUID();
+  const widgetInRoomAId = randomUUID();
+  const memberOfRoomAId = randomUUID();
+  const memberOfRoomBId = randomUUID();
 
   beforeEach(() => {
-    roomAId = randomUUID();
-    roomBId = randomUUID();
-    widgetInRoomAId = randomUUID();
-    memberOfRoomAId = randomUUID();
-    memberOfRoomBId = randomUUID();
-
     prisma = {
       widget: { findUnique: jest.fn() },
       expense: { findUnique: jest.fn() },
@@ -97,11 +91,7 @@ describe('RoomMembershipIntegrityService', () => {
   });
 
   describe('assertExpenseRoomMembership', () => {
-    let expenseInRoomAId: string;
-
-    beforeEach(() => {
-      expenseInRoomAId = randomUUID();
-    });
+    const expenseInRoomAId = randomUUID();
 
     it('throws NotFoundException when expense does not exist', async () => {
       prisma.expense.findUnique.mockResolvedValue(null);

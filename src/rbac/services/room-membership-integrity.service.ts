@@ -49,9 +49,7 @@ export class RoomMembershipIntegrityService {
     });
 
     if (roomMembers.length !== uniqueIds.length) {
-      throw new BadRequestException(
-        'One or more roomMemberId values are invalid',
-      );
+      throw new BadRequestException(ERROR_MESSAGES.INVALID_ROOM_MEMBER_IDS);
     }
 
     for (const member of roomMembers) {

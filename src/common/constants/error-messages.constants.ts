@@ -12,4 +12,5 @@ export const ERROR_MESSAGES = {
     `User with current id ${userId} is not the owner of this room`,
   CROSS_ROOM_MEMBERSHIP: (roomMemberId: string, roomId: string) =>
     `Room member ${roomMemberId} does not belong to room ${roomId}`,
+  INVALID_ROOM_MEMBER_IDS: 'One or more roomMemberId values are invalid',
 } as const;
