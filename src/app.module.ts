@@ -18,12 +18,15 @@ import { RbacModule } from './rbac/rbac.module';
         abortEarly: false,
       },
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 20,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.get<number>('THROTTLE_TTL')!,
+          limit: config.get<number>('THROTTLE_LIMIT')!,
+        },
+      ],
+    }),
     AuthModule,
     PrismaModule,
     RbacModule,

@@ -11,7 +11,7 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
   app.use(helmet());
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:5173'],
+    origin: process.env.ORIGIN?.split(','),
     credentials: true,
   });
   app.useGlobalFilters(new GlobalExceptionFilter());
