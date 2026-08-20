@@ -54,6 +54,9 @@ jobs:
           JWT_REFRESH_SECRET: e2e-refresh-secret
           JWT_ACCESS_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
+          ORIGIN: http://localhost:5173
+          THROTTLE_TTL: 60000
+          THROTTLE_LIMIT: 20
 
       - run: npm run test:cov
 

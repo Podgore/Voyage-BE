@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { envValidationSchema } from './config/env.validation';
 import { AuthModule } from './auth/auth.module';
@@ -15,6 +17,15 @@ import { RbacModule } from './rbac/rbac.module';
       validationOptions: {
         abortEarly: false,
       },
+    }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.get<number>('THROTTLE_TTL')!,
+          limit: config.get<number>('THROTTLE_LIMIT')!,
+        },
+      ],
     }),
     AuthModule,
     PrismaModule,
@@ -40,5 +51,11 @@ import { RbacModule } from './rbac/rbac.module';
     }),
   ],
   controllers: [AppController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
