@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
 
-jest.mock('../../prisma/prisma.service', () => ({
+jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
 
