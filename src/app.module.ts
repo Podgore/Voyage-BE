@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './prisma/prisma.module';
 import { RbacModule } from './rbac/rbac.module';
+import { RoomsModule } from './rooms/rooms.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RbacModule } from './rbac/rbac.module';
         },
       }),
     }),
+    RoomsModule,
   ],
   controllers: [AppController],
   providers: [
