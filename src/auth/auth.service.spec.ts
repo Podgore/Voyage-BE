@@ -1,11 +1,12 @@
 import { config } from 'dotenv';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
+import * as hashUtil from './utils/hash.util';
 
 type User = {
   id: string;
@@ -125,6 +126,54 @@ describe('AuthService', () => {
         name: createdUser.name,
         email: createdUser.email,
       });
+    });
+  });
+
+  describe('login', () => {
+    const dto = {
+      email: 'test@voyage.com',
+      password: 'password123',
+    };
+
+    it('returns access and refresh tokens for valid credentials', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: randomUUID(),
+        email: dto.email,
+        passwordHash: 'hashed-value',
+      });
+      jest.spyOn(hashUtil, 'comparePassword').mockResolvedValue(true);
+      mockJwtService.sign
+        .mockReturnValueOnce('access-token')
+        .mockReturnValueOnce('refresh-token');
+
+      await expect(service.login(dto)).resolves.toEqual({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+      expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns a generic 401 when the email does not exist', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.login(dto)).rejects.toThrow(
+        ERROR_MESSAGES.INVALID_CREDENTIALS,
+      );
+    });
+
+    it('returns the same generic 401 when the password is incorrect', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: randomUUID(),
+        email: dto.email,
+        passwordHash: 'hashed-value',
+      });
+      jest.spyOn(hashUtil, 'comparePassword').mockResolvedValue(false);
+
+      await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.login(dto)).rejects.toThrow(
+        ERROR_MESSAGES.INVALID_CREDENTIALS,
+      );
     });
   });
 });

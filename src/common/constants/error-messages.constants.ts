@@ -5,6 +5,7 @@ export const ERROR_MESSAGES = {
   REQUEST_FAILED: 'Request failed',
   DATABASE_CONNECTION_FAILED: 'Database connection failed',
   USER_NOT_AUTHENTICATED: 'User is not authenticated',
+  INVALID_CREDENTIALS: 'Invalid email or password',
   ROOM_ID_MISSING: 'roomId param is missing',
   NOT_ROOM_MEMBER: (userId: string) =>
     `User with current id ${userId} is not a member of this room`,
