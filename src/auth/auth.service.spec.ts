@@ -3,9 +3,12 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
+import { validate, ValidationError } from 'class-validator';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import * as hashUtil from './utils/hash.util';
 
 type User = {
@@ -82,6 +85,24 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
+  it('rejects weak passwords that do not include uppercase, lowercase, number and symbol', async () => {
+    const dto = new RegisterDto();
+    dto.name = 'Test User';
+    dto.email = 'test@voyage.com';
+    dto.password = 'password123';
+
+    const errors: ValidationError[] = await validate(dto);
+    const firstError = errors[0] as ValidationError & {
+      constraints?: Record<string, string>;
+    };
+
+    expect(errors.length).toBeGreaterThan(0);
+    expect(firstError.constraints).toHaveProperty('isStrongPassword');
+    expect(firstError.constraints?.isStrongPassword).toEqual(
+      expect.any(String),
+    );
+  });
+
   describe('register', () => {
     const dto = {
       name: 'Test User',
@@ -132,8 +153,25 @@ describe('AuthService', () => {
   describe('login', () => {
     const dto = {
       email: 'test@voyage.com',
-      password: 'password123',
+      password: 'Password123!',
     };
+
+    it('rejects weak passwords in the login payload', async () => {
+      const loginDto = new LoginDto();
+      loginDto.email = 'test@voyage.com';
+      loginDto.password = 'password123';
+
+      const errors: ValidationError[] = await validate(loginDto);
+      const firstError = errors[0] as ValidationError & {
+        constraints?: Record<string, string>;
+      };
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(firstError.constraints).toHaveProperty('isStrongPassword');
+      expect(firstError.constraints?.isStrongPassword).toEqual(
+        expect.any(String),
+      );
+    });
 
     it('returns access and refresh tokens for valid credentials', async () => {
       prisma.user.findUnique.mockResolvedValue({
