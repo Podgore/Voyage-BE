@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { generateInviteCode } from './utils/invite-code.util';
+import { RoomRole } from '../rbac/enums/room-role.enum';
 
 @Injectable()
 export class RoomsService {
@@ -22,7 +23,7 @@ export class RoomsService {
         data: {
           roomId: room.id,
           userId,
-          role: 'owner',
+          role: RoomRole.OWNER,
         },
       });
 
