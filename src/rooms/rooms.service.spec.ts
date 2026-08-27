@@ -17,9 +17,12 @@ describe('RoomsService', () => {
   const transaction = {
     room: {
       create: jest.fn().mockResolvedValue(room),
+      findUnique: jest.fn(),
     },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
   };
   const prisma = {
@@ -58,6 +61,44 @@ describe('RoomsService', () => {
         userId: 'user-1',
         role: 'owner',
       },
+    });
+  });
+
+  it('joins a room as a member', async () => {
+    transaction.room.findUnique.mockResolvedValue(room);
+    transaction.roomMember.findUnique.mockResolvedValue(null);
+    const membership = { id: 'member-1', roomId: room.id, userId: 'user-2' };
+    transaction.roomMember.create.mockResolvedValue(membership);
+
+    await expect(
+      service.join({ inviteCode: room.inviteCode }, 'user-2'),
+    ).resolves.toBe(membership);
+
+    expect(transaction.roomMember.create).toHaveBeenCalledWith({
+      data: { roomId: room.id, userId: 'user-2', role: 'member' },
+    });
+  });
+
+  it('reuses a left membership when joining again', async () => {
+    transaction.room.findUnique.mockResolvedValue(room);
+    const membership = {
+      id: 'member-1',
+      roomId: room.id,
+      userId: 'user-2',
+      leftAt: new Date(),
+    };
+    transaction.roomMember.findUnique.mockResolvedValue(membership);
+    transaction.roomMember.update.mockResolvedValue({
+      ...membership,
+      leftAt: null,
+      role: 'member',
+    });
+
+    await service.join({ inviteCode: room.inviteCode }, 'user-2');
+
+    expect(transaction.roomMember.update).toHaveBeenCalledWith({
+      where: { id: membership.id },
+      data: { leftAt: null, role: 'member' },
     });
   });
 });
