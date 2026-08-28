@@ -15,5 +15,4 @@ export const ERROR_MESSAGES = {
   INVALID_ROOM_MEMBER_IDS: 'One or more roomMemberId values are invalid',
   ROOM_NOT_FOUND: 'Room not found for the provided invite code',
   ALREADY_ROOM_MEMBER: 'User is already a member of this room',
-  ROOM_JOIN_FAILED: 'Unable to join room',
 } as const;
