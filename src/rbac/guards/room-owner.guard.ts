@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../../common/constants/error-messages.constants';
 import { BaseRoomAccessGuard } from './base-room-access.guard';
+import { RoomRole } from '../enums/room-role.enum';
 
 @Injectable()
 export class RoomOwnerGuard extends BaseRoomAccessGuard {
@@ -10,7 +11,7 @@ export class RoomOwnerGuard extends BaseRoomAccessGuard {
   }
 
   protected getRoleFilter() {
-    return { role: 'owner' };
+    return { role: RoomRole.OWNER };
   }
 
   protected getAccessDeniedMessage(userId: string) {

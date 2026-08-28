@@ -7,7 +7,10 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+
   app.useLogger(app.get(Logger));
   app.use(helmet());
   app.enableCors({
@@ -19,6 +22,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
 
@@ -35,8 +39,10 @@ async function bootstrap() {
 
     SwaggerModule.setup('api/docs', app, documentFactory);
   }
+
   await app.listen(process.env.PORT ?? 3000);
 }
+
 bootstrap().catch((err) => {
   console.error(err);
   process.exit(1);
