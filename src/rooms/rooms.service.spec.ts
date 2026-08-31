@@ -78,4 +78,55 @@ describe('RoomsService', () => {
       include: { room: true },
     });
   });
+
+  it('returns active room members by default', async () => {
+    const members = [
+      {
+        id: 'membership-1',
+        role: 'owner',
+        leftAt: null,
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+    ];
+    prisma.roomMember.findMany.mockResolvedValue(members);
+
+    await expect(service.findMembers('room-1')).resolves.toEqual([
+      {
+        id: 'membership-1',
+        role: 'owner',
+        leftAt: null,
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+    ]);
+
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1', leftAt: null },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+  });
+
+  it('can include departed members when requested', async () => {
+    const members = [
+      {
+        id: 'membership-1',
+        role: 'owner',
+        leftAt: null,
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+      {
+        id: 'membership-2',
+        role: 'member',
+        leftAt: new Date('2025-01-01'),
+        user: { id: 'user-2', name: 'Bob', email: 'bob@example.com' },
+      },
+    ];
+    prisma.roomMember.findMany.mockResolvedValue(members);
+
+    await expect(service.findMembers('room-1', true)).resolves.toEqual(members);
+
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1' },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+  });
 });

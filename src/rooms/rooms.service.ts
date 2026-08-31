@@ -44,4 +44,24 @@ export class RoomsService {
 
     return memberships.map((membership) => membership.room);
   }
+
+  async findMembers(roomId: string, includeDeparted = false) {
+    const memberships = await this.prisma.roomMember.findMany({
+      where: {
+        roomId,
+        ...(includeDeparted ? {} : { leftAt: null }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return memberships;
+  }
 }

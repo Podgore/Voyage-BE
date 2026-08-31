@@ -11,6 +11,7 @@ describe('RoomsController', () => {
   const roomsService = {
     create: jest.fn(),
     findAll: jest.fn(),
+    findMembers: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -53,5 +54,34 @@ describe('RoomsController', () => {
     ).resolves.toEqual(rooms);
 
     expect(roomsService.findAll).toHaveBeenCalledWith('user-1');
+  });
+
+  it('lists active room members by default', async () => {
+    const members = [{ id: 'membership-1', role: 'owner' }];
+    roomsService.findMembers.mockResolvedValue(members);
+
+    await expect(
+      controller.findMembers('room-1', undefined, {
+        user: { userId: 'user-1' },
+      }),
+    ).resolves.toEqual(members);
+
+    expect(roomsService.findMembers).toHaveBeenCalledWith('room-1', false);
+  });
+
+  it('can include departed room members when requested', async () => {
+    const members = [
+      { id: 'membership-1', role: 'owner' },
+      { id: 'membership-2', role: 'member' },
+    ];
+    roomsService.findMembers.mockResolvedValue(members);
+
+    await expect(
+      controller.findMembers('room-1', 'true', {
+        user: { userId: 'user-1' },
+      }),
+    ).resolves.toEqual(members);
+
+    expect(roomsService.findMembers).toHaveBeenCalledWith('room-1', true);
   });
 });

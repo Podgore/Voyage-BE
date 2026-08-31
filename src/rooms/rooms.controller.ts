@@ -1,4 +1,13 @@
-import { Controller, Post, Body, UseGuards, Req, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Get,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomsService } from './rooms.service';
@@ -13,6 +22,18 @@ export class RoomsController {
   findAll(@Req() req: AuthenticatedRequest) {
     const userId = req.user.userId;
     return this.roomsService.findAll(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':roomId/members')
+  findMembers(
+    @Param('roomId') roomId: string,
+    @Query('includeDeparted') includeDeparted?: string,
+    @Req() req?: AuthenticatedRequest,
+  ) {
+    void req;
+    const shouldIncludeDeparted = includeDeparted === 'true';
+    return this.roomsService.findMembers(roomId, shouldIncludeDeparted);
   }
 
   @UseGuards(JwtAuthGuard)
