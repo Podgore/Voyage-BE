@@ -30,4 +30,18 @@ export class RoomsService {
       return room;
     });
   }
+
+  async findAll(userId: string) {
+    const memberships = await this.prisma.roomMember.findMany({
+      where: {
+        userId,
+        leftAt: null,
+      },
+      include: {
+        room: true,
+      },
+    });
+
+    return memberships.map((membership) => membership.room);
+  }
 }
