@@ -15,4 +15,6 @@ export const ERROR_MESSAGES = {
     `Room member ${roomMemberId} does not belong to room ${roomId}`,
   INVALID_ROOM_MEMBER_IDS: 'One or more roomMemberId values are invalid',
   EMAIL_ALREADY_EXISTS: 'A user with this email already exists',
+  TARGET_NOT_ACTIVE_MEMBER: 'Target user is not an active member of this room',
+  TARGET_ALREADY_OWNER: 'Target user is already the owner of this room',
 } as const;
