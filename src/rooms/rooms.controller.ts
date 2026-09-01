@@ -8,11 +8,14 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 
+@ApiTags('Rooms')
+@ApiBearerAuth()
 @Controller('rooms')
 export class RoomsController {
   constructor(private roomsService: RoomsService) {}
