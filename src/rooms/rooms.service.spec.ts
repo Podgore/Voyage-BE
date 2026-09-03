@@ -20,12 +20,16 @@ describe('RoomsService', () => {
     },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn(),
     },
   };
   const prisma = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
+    roomMember: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -57,6 +61,31 @@ describe('RoomsService', () => {
         roomId: 'room-1',
         userId: 'user-1',
         role: 'owner',
+      },
+    });
+  });
+
+  it('returns only active rooms for the authenticated user', async () => {
+    const activeRooms = [room, { ...room, id: 'room-2', name: 'Alps trip' }];
+    prisma.roomMember.findMany.mockResolvedValue(
+      activeRooms.map((roomItem) => ({
+        room: { ...roomItem, internalField: 'must not be returned' },
+      })),
+    );
+
+    await expect(service.findAll('user-1')).resolves.toEqual(activeRooms);
+
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', leftAt: null },
+      select: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+            createdAt: true,
+          },
+        },
       },
     });
   });

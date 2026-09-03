@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { RoomResponseDto } from './dto/room-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 import { RoomRole } from '../rbac/enums/room-role.enum';
 
@@ -29,5 +30,31 @@ export class RoomsService {
 
       return room;
     });
+  }
+
+  async findAll(userId: string): Promise<RoomResponseDto[]> {
+    const memberships = await this.prisma.roomMember.findMany({
+      where: {
+        userId,
+        leftAt: null,
+      },
+      select: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    return memberships.map(({ room }) => ({
+      id: room.id,
+      name: room.name,
+      inviteCode: room.inviteCode,
+      createdAt: room.createdAt,
+    }));
   }
 }
