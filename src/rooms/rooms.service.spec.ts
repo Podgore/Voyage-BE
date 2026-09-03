@@ -68,14 +68,25 @@ describe('RoomsService', () => {
   it('returns only active rooms for the authenticated user', async () => {
     const activeRooms = [room, { ...room, id: 'room-2', name: 'Alps trip' }];
     prisma.roomMember.findMany.mockResolvedValue(
-      activeRooms.map((roomItem) => ({ room: roomItem })),
+      activeRooms.map((roomItem) => ({
+        room: { ...roomItem, internalField: 'must not be returned' },
+      })),
     );
 
     await expect(service.findAll('user-1')).resolves.toEqual(activeRooms);
 
     expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
       where: { userId: 'user-1', leftAt: null },
-      include: { room: true },
+      select: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+            createdAt: true,
+          },
+        },
+      },
     });
   });
 });
