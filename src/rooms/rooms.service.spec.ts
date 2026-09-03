@@ -112,7 +112,13 @@ describe('RoomsService', () => {
 
     expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
       where: { roomId: 'room-1', leftAt: null },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
   });
 
@@ -137,7 +143,13 @@ describe('RoomsService', () => {
 
     expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
       where: { roomId: 'room-1' },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
   });
 });

@@ -60,11 +60,9 @@ describe('RoomsController', () => {
     const members = [{ id: 'membership-1', role: 'owner' }];
     roomsService.findMembers.mockResolvedValue(members);
 
-    await expect(
-      controller.findMembers('room-1', undefined, {
-        user: { userId: 'user-1' },
-      }),
-    ).resolves.toEqual(members);
+    await expect(controller.findMembers('room-1', false)).resolves.toEqual(
+      members,
+    );
 
     expect(roomsService.findMembers).toHaveBeenCalledWith('room-1', false);
   });
@@ -76,11 +74,9 @@ describe('RoomsController', () => {
     ];
     roomsService.findMembers.mockResolvedValue(members);
 
-    await expect(
-      controller.findMembers('room-1', 'true', {
-        user: { userId: 'user-1' },
-      }),
-    ).resolves.toEqual(members);
+    await expect(controller.findMembers('room-1', true)).resolves.toEqual(
+      members,
+    );
 
     expect(roomsService.findMembers).toHaveBeenCalledWith('room-1', true);
   });

@@ -2,10 +2,12 @@ import {
   Controller,
   Post,
   Body,
+  DefaultValuePipe,
   UseGuards,
   Req,
   Get,
   Param,
+  ParseBoolPipe,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -31,12 +33,10 @@ export class RoomsController {
   @Get(':roomId/members')
   findMembers(
     @Param('roomId') roomId: string,
-    @Query('includeDeparted') includeDeparted?: string,
-    @Req() req?: AuthenticatedRequest,
+    @Query('includeDeparted', new DefaultValuePipe(false), ParseBoolPipe)
+    includeDeparted: boolean,
   ) {
-    void req;
-    const shouldIncludeDeparted = includeDeparted === 'true';
-    return this.roomsService.findMembers(roomId, shouldIncludeDeparted);
+    return this.roomsService.findMembers(roomId, includeDeparted);
   }
 
   @UseGuards(JwtAuthGuard)
