@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { RoomHubDto } from './dto/room-hub-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 import { RoomRole } from '../rbac/enums/room-role.enum';
 
@@ -32,7 +33,7 @@ export class RoomsService {
     });
   }
 
-  async getRoomHub(roomId: string, userId: string) {
+  async getRoomHub(roomId: string, userId: string): Promise<RoomHubDto> {
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
       include: { widgets: true },
