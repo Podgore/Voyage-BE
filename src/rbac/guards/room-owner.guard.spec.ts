@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { RoomRole } from '../../../generated/prisma/client';
 import { randomUUID } from 'node:crypto';
 import { RoomOwnerGuard } from './room-owner.guard';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -53,7 +54,7 @@ describe('RoomOwnerGuard', () => {
         roomId,
         userId,
         leftAt: null,
-        role: 'owner',
+        role: RoomRole.OWNER,
       },
     });
   });
@@ -61,7 +62,7 @@ describe('RoomOwnerGuard', () => {
   it('returns true when user is the room owner', async () => {
     prisma.roomMember.findFirst.mockResolvedValue({
       id: randomUUID(),
-      role: 'owner',
+      role: RoomRole.OWNER,
     });
     const context = createExecutionContext({ userId }, roomId);
 

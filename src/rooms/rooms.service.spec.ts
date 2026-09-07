@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
+import { RoomRole } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsService } from './rooms.service';
 
@@ -24,7 +25,6 @@ describe('RoomsService', () => {
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
       findFirst: jest.fn(),
-      updateMany: jest.fn(),
       update: jest.fn(),
     },
   };
@@ -60,7 +60,7 @@ describe('RoomsService', () => {
       data: {
         roomId: 'room-1',
         userId: 'user-1',
-        role: 'owner',
+        role: RoomRole.OWNER,
       },
     });
   });
@@ -69,7 +69,7 @@ describe('RoomsService', () => {
     it('transfers ownership to an active member', async () => {
       transaction.roomMember.findFirst.mockResolvedValue({
         id: 'member-1',
-        role: 'member',
+        role: RoomRole.MEMBER,
       });
 
       const result = await service.transferOwnership(
@@ -79,13 +79,13 @@ describe('RoomsService', () => {
       );
 
       expect(result).toEqual({ roomId: 'room-1', newOwnerId: 'user-2' });
-      expect(transaction.roomMember.updateMany).toHaveBeenCalledWith({
-        where: { roomId: 'room-1', userId: 'owner-1', role: 'owner' },
-        data: { role: 'member' },
+      expect(transaction.roomMember.update).toHaveBeenCalledWith({
+        where: { userId_roomId: { roomId: 'room-1', userId: 'owner-1' } },
+        data: { role: RoomRole.MEMBER },
       });
       expect(transaction.roomMember.update).toHaveBeenCalledWith({
         where: { id: 'member-1' },
-        data: { role: 'owner' },
+        data: { role: RoomRole.OWNER },
       });
     });
 
@@ -100,7 +100,7 @@ describe('RoomsService', () => {
     it('throws when target is already the owner', async () => {
       transaction.roomMember.findFirst.mockResolvedValue({
         id: 'member-1',
-        role: 'owner',
+        role: RoomRole.OWNER,
       });
 
       await expect(

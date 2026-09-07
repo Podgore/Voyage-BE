@@ -3,11 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RoomRole } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { generateInviteCode } from './utils/invite-code.util';
-import { RoomRole } from '../rbac/enums/room-role.enum';
 
 @Injectable()
 export class RoomsService {
@@ -47,12 +47,12 @@ export class RoomsService {
         throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
       }
 
-      if (targetMembership.role === (RoomRole.OWNER as string)) {
+      if (targetMembership.role === RoomRole.OWNER) {
         throw new ConflictException(ERROR_MESSAGES.TARGET_ALREADY_OWNER);
       }
 
-      await tx.roomMember.updateMany({
-        where: { roomId, userId: currentOwnerId, role: RoomRole.OWNER },
+      await tx.roomMember.update({
+        where: { userId_roomId: { roomId, userId: currentOwnerId } },
         data: { role: RoomRole.MEMBER },
       });
 

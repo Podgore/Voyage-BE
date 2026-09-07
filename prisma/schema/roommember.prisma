@@ -1,8 +1,13 @@
+enum RoomRole {
+  MEMBER @map("member")
+  OWNER  @map("owner")
+}
+
 model RoomMember {
   id       String    @id @default(uuid())
   userId   String    @map("user_id")
   roomId   String    @map("room_id")
-  role     String    @default("member")
+  role     RoomRole  @default(MEMBER)
   joinedAt DateTime  @default(now()) @map("joined_at")
   leftAt   DateTime? @map("left_at")
 
