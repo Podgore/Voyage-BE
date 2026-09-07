@@ -18,7 +18,7 @@ export class RoomsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('join')
-  join(@Body() dto: JoinRoomDto, @Req() req: AuthenticatedRequest) {
-    return this.roomsService.join(dto, req.user.userId);
+  joinRoom(@Body() dto: JoinRoomDto, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.joinRoom(dto, req.user.userId);
   }
 }

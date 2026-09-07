@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
+import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { generateInviteCode } from './utils/invite-code.util';
@@ -38,7 +39,7 @@ export class RoomsService {
     });
   }
 
-  async join(dto: JoinRoomDto, userId: string) {
+  async joinRoom(dto: JoinRoomDto, userId: string) {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const room = await tx.room.findUnique({
@@ -77,7 +78,7 @@ export class RoomsService {
       }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        (error.code as PrismaErrorCode) === PrismaErrorCode.UNIQUE_CONSTRAINT
       ) {
         throw new ConflictException(ERROR_MESSAGES.ALREADY_ROOM_MEMBER);
       }

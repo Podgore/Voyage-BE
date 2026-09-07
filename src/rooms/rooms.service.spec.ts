@@ -71,7 +71,7 @@ describe('RoomsService', () => {
     transaction.roomMember.create.mockResolvedValue(membership);
 
     await expect(
-      service.join({ inviteCode: room.inviteCode }, 'user-2'),
+      service.joinRoom({ inviteCode: room.inviteCode }, 'user-2'),
     ).resolves.toBe(membership);
 
     expect(transaction.roomMember.create).toHaveBeenCalledWith({
@@ -94,7 +94,7 @@ describe('RoomsService', () => {
       role: 'member',
     });
 
-    await service.join({ inviteCode: room.inviteCode }, 'user-2');
+    await service.joinRoom({ inviteCode: room.inviteCode }, 'user-2');
 
     expect(transaction.roomMember.update).toHaveBeenCalledWith({
       where: { id: membership.id },
