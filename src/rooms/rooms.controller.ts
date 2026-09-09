@@ -1,24 +1,25 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   DefaultValuePipe,
-  UseGuards,
-  Req,
   Get,
   Param,
   ParseBoolPipe,
   ParseIntPipe,
+  Post,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
+import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
-import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
+import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
 @ApiBearerAuth()
@@ -33,8 +34,7 @@ export class RoomsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    const userId = req.user.userId;
-    return this.roomsService.findAll(userId, page, limit);
+    return this.roomsService.findAll(req.user.userId, page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -50,14 +50,22 @@ export class RoomsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() dto: CreateRoomDto, @Req() req: AuthenticatedRequest) {
-    const userId = req.user.userId;
-    return this.roomsService.create(dto, userId);
+    return this.roomsService.create(dto, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('join')
   joinRoom(@Body() dto: JoinRoomDto, @Req() req: AuthenticatedRequest) {
     return this.roomsService.joinRoom(dto, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Get(':roomId')
+  getRoomHub(
+    @Param('roomId') roomId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.roomsService.getRoomHub(roomId, req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)

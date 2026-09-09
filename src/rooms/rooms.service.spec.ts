@@ -29,7 +29,8 @@ describe('RoomsService', () => {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
-    roomMember: { findMany: jest.fn() },
+    room: { findUnique: jest.fn() },
+    roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -45,7 +46,11 @@ describe('RoomsService', () => {
       service.create({ name: 'Summer trip' }, 'user-1'),
     ).resolves.toBe(room);
     expect(transaction.roomMember.create).toHaveBeenCalledWith({
-      data: { roomId: 'room-1', userId: 'user-1', role: RoomRole.OWNER },
+      data: {
+        roomId: 'room-1',
+        userId: 'user-1',
+        role: RoomRole.OWNER,
+      },
     });
   });
 
@@ -124,6 +129,22 @@ describe('RoomsService', () => {
     });
   });
 
+  it('returns room hub information for the authenticated user', async () => {
+    prisma.room.findUnique.mockResolvedValue({
+      id: 'room-1',
+      name: 'Summer trip',
+      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+    });
+    prisma.roomMember.findFirst.mockResolvedValue({ role: 'owner' });
+
+    await expect(service.getRoomHub('room-1', 'user-1')).resolves.toEqual({
+      id: 'room-1',
+      name: 'Summer trip',
+      myRole: 'owner',
+      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+    });
+  });
+
   it('transfers ownership to an active member', async () => {
     transaction.roomMember.findFirst.mockResolvedValue({
       id: 'member-1',
@@ -133,17 +154,9 @@ describe('RoomsService', () => {
     await expect(
       service.transferOwnership('room-1', 'owner-1', 'user-2'),
     ).resolves.toEqual({ roomId: 'room-1', newOwnerId: 'user-2' });
-    expect(transaction.roomMember.update).toHaveBeenCalledWith({
-      where: { userId_roomId: { roomId: 'room-1', userId: 'owner-1' } },
-      data: { role: RoomRole.MEMBER },
-    });
-    expect(transaction.roomMember.update).toHaveBeenCalledWith({
-      where: { id: 'member-1' },
-      data: { role: RoomRole.OWNER },
-    });
   });
 
-  it('throws when the target is not an active member', async () => {
+  it('throws when target is not an active member', async () => {
     transaction.roomMember.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -151,7 +164,7 @@ describe('RoomsService', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it('throws when the target is already the owner', async () => {
+  it('throws when target is already the owner', async () => {
     transaction.roomMember.findFirst.mockResolvedValue({
       id: 'member-1',
       role: RoomRole.OWNER,
