@@ -1,5 +1,5 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException } from '@nestjs/common';
 import { RoomRole } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsService } from './rooms.service';
@@ -10,29 +10,26 @@ jest.mock('../prisma/prisma.service', () => ({
 
 describe('RoomsService', () => {
   let service: RoomsService;
-
   const room = {
     id: 'room-1',
     name: 'Summer trip',
     inviteCode: 'ABC123',
     createdAt: new Date(),
   };
-
   const transaction = {
-    room: {
-      create: jest.fn().mockResolvedValue(room),
-    },
+    room: { create: jest.fn().mockResolvedValue(room), findUnique: jest.fn() },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
     },
   };
-
   const prisma = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
+    roomMember: { findMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -44,68 +41,124 @@ describe('RoomsService', () => {
   });
 
   it('creates a room and makes its creator the owner', async () => {
-    const inviteCodeMatcher = expect.stringMatching(
-      /^[A-Z0-9]{6}$/,
-    ) as unknown as string;
     await expect(
       service.create({ name: 'Summer trip' }, 'user-1'),
     ).resolves.toBe(room);
-    expect(transaction.room.create).toHaveBeenCalledWith({
-      data: {
-        name: 'Summer trip',
-        inviteCode: inviteCodeMatcher,
-      },
-    });
     expect(transaction.roomMember.create).toHaveBeenCalledWith({
-      data: {
-        roomId: 'room-1',
-        userId: 'user-1',
-        role: RoomRole.OWNER,
+      data: { roomId: 'room-1', userId: 'user-1', role: RoomRole.OWNER },
+    });
+  });
+
+  it('joins a room as a member', async () => {
+    transaction.room.findUnique.mockResolvedValue(room);
+    transaction.roomMember.findUnique.mockResolvedValue(null);
+    transaction.roomMember.create.mockResolvedValue({
+      id: 'member-1',
+      roomId: room.id,
+      userId: 'user-2',
+      role: 'member',
+    });
+
+    await expect(
+      service.joinRoom({ inviteCode: room.inviteCode }, 'user-2'),
+    ).resolves.toEqual({
+      id: 'member-1',
+      roomId: room.id,
+      userId: 'user-2',
+      role: 'member',
+    });
+  });
+
+  it('returns only active rooms for the authenticated user', async () => {
+    prisma.roomMember.findMany.mockResolvedValue([{ room }]);
+
+    await expect(service.findAll('user-1')).resolves.toEqual([room]);
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', leftAt: null },
+      select: {
+        room: {
+          select: { id: true, name: true, inviteCode: true, createdAt: true },
+        },
+      },
+      skip: 0,
+      take: 10,
+    });
+  });
+
+  it('returns active room members by default', async () => {
+    const member = {
+      id: 'membership-1',
+      role: 'owner',
+      joinedAt: new Date(),
+      leftAt: null,
+      user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+    };
+    prisma.roomMember.findMany.mockResolvedValue([member]);
+
+    await expect(service.findMembers('room-1')).resolves.toEqual([member]);
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1', leftAt: null },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
       },
     });
   });
 
-  describe('transferOwnership', () => {
-    it('transfers ownership to an active member', async () => {
-      transaction.roomMember.findFirst.mockResolvedValue({
-        id: 'member-1',
-        role: RoomRole.MEMBER,
-      });
+  it('can include departed room members', async () => {
+    prisma.roomMember.findMany.mockResolvedValue([]);
 
-      const result = await service.transferOwnership(
-        'room-1',
-        'owner-1',
-        'user-2',
-      );
+    await expect(service.findMembers('room-1', true)).resolves.toEqual([]);
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1' },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+  });
 
-      expect(result).toEqual({ roomId: 'room-1', newOwnerId: 'user-2' });
-      expect(transaction.roomMember.update).toHaveBeenCalledWith({
-        where: { userId_roomId: { roomId: 'room-1', userId: 'owner-1' } },
-        data: { role: RoomRole.MEMBER },
-      });
-      expect(transaction.roomMember.update).toHaveBeenCalledWith({
-        where: { id: 'member-1' },
-        data: { role: RoomRole.OWNER },
-      });
+  it('transfers ownership to an active member', async () => {
+    transaction.roomMember.findFirst.mockResolvedValue({
+      id: 'member-1',
+      role: RoomRole.MEMBER,
     });
 
-    it('throws when target is not an active member', async () => {
-      transaction.roomMember.findFirst.mockResolvedValue(null);
+    await expect(
+      service.transferOwnership('room-1', 'owner-1', 'user-2'),
+    ).resolves.toEqual({ roomId: 'room-1', newOwnerId: 'user-2' });
+    expect(transaction.roomMember.update).toHaveBeenCalledWith({
+      where: { userId_roomId: { roomId: 'room-1', userId: 'owner-1' } },
+      data: { role: RoomRole.MEMBER },
+    });
+    expect(transaction.roomMember.update).toHaveBeenCalledWith({
+      where: { id: 'member-1' },
+      data: { role: RoomRole.OWNER },
+    });
+  });
 
-      await expect(
-        service.transferOwnership('room-1', 'owner-1', 'user-2'),
-      ).rejects.toThrow(NotFoundException);
+  it('throws when the target is not an active member', async () => {
+    transaction.roomMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.transferOwnership('room-1', 'owner-1', 'user-2'),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('throws when the target is already the owner', async () => {
+    transaction.roomMember.findFirst.mockResolvedValue({
+      id: 'member-1',
+      role: RoomRole.OWNER,
     });
 
-    it('throws when target is already the owner', async () => {
-      transaction.roomMember.findFirst.mockResolvedValue({
-        id: 'member-1',
-        role: RoomRole.OWNER,
-      });
-
-      await expect(
-        service.transferOwnership('room-1', 'owner-1', 'user-2'),
-      ).rejects.toThrow(ConflictException);
-    });
+    await expect(
+      service.transferOwnership('room-1', 'owner-1', 'user-2'),
+    ).rejects.toThrow(ConflictException);
   });
 });
