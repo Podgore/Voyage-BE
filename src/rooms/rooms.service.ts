@@ -11,6 +11,7 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 import { RoomRole } from '../rbac/enums/room-role.enum';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 
 @Injectable()
 export class RoomsService {
@@ -39,7 +40,10 @@ export class RoomsService {
     });
   }
 
-  async joinRoom(dto: JoinRoomDto, userId: string) {
+  async joinRoom(
+    dto: JoinRoomDto,
+    userId: string,
+  ): Promise<JoinRoomResponseDto> {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const room = await tx.room.findUnique({
@@ -59,23 +63,31 @@ export class RoomsService {
         }
 
         if (membership) {
-          return tx.roomMember.update({
+          const updatedMembership = await tx.roomMember.update({
             where: { id: membership.id },
             data: { leftAt: null, role: RoomRole.MEMBER },
           });
+
+          return {
+            id: updatedMembership.id,
+            roomId: updatedMembership.roomId,
+            userId: updatedMembership.userId,
+            role: updatedMembership.role,
+          };
         }
 
-        return tx.roomMember.create({
+        const newMembership = await tx.roomMember.create({
           data: { roomId: room.id, userId, role: RoomRole.MEMBER },
         });
+
+        return {
+          id: newMembership.id,
+          roomId: newMembership.roomId,
+          userId: newMembership.userId,
+          role: newMembership.role,
+        };
       });
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof ConflictException
-      ) {
-        throw error;
-      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         (error.code as PrismaErrorCode) === PrismaErrorCode.UNIQUE_CONSTRAINT

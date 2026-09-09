@@ -67,12 +67,23 @@ describe('RoomsService', () => {
   it('joins a room as a member', async () => {
     transaction.room.findUnique.mockResolvedValue(room);
     transaction.roomMember.findUnique.mockResolvedValue(null);
-    const membership = { id: 'member-1', roomId: room.id, userId: 'user-2' };
+    const membership = {
+      id: 'member-1',
+      roomId: room.id,
+      userId: 'user-2',
+      role: 'member',
+      leftAt: null,
+    };
     transaction.roomMember.create.mockResolvedValue(membership);
 
     await expect(
       service.joinRoom({ inviteCode: room.inviteCode }, 'user-2'),
-    ).resolves.toBe(membership);
+    ).resolves.toEqual({
+      id: membership.id,
+      roomId: membership.roomId,
+      userId: membership.userId,
+      role: membership.role,
+    });
 
     expect(transaction.roomMember.create).toHaveBeenCalledWith({
       data: { roomId: room.id, userId: 'user-2', role: 'member' },
