@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { RoomListResponseDto } from './dto/room-list-response.dto';
+import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 import { RoomRole } from '../rbac/enums/room-role.enum';
 
@@ -29,5 +31,70 @@ export class RoomsService {
 
       return room;
     });
+  }
+
+  async findAll(
+    userId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<RoomListResponseDto[]> {
+    const memberships = await this.prisma.roomMember.findMany({
+      where: {
+        userId,
+        leftAt: null,
+      },
+      select: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+            createdAt: true,
+          },
+        },
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return memberships.map(({ room }) => ({
+      id: room.id,
+      name: room.name,
+      inviteCode: room.inviteCode,
+      createdAt: room.createdAt,
+    }));
+  }
+
+  async findMembers(
+    roomId: string,
+    includeDeparted = false,
+  ): Promise<RoomMemberResponseDto[]> {
+    const memberships = await this.prisma.roomMember.findMany({
+      where: {
+        roomId,
+        ...(includeDeparted ? {} : { leftAt: null }),
+      },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return memberships.map((membership) => ({
+      id: membership.id,
+      role: membership.role,
+      joinedAt: membership.joinedAt,
+      leftAt: membership.leftAt,
+      user: membership.user,
+    }));
   }
 }

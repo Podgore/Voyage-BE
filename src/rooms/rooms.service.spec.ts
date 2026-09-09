@@ -20,12 +20,16 @@ describe('RoomsService', () => {
     },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn(),
     },
   };
   const prisma = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
+    roomMember: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -57,6 +61,98 @@ describe('RoomsService', () => {
         roomId: 'room-1',
         userId: 'user-1',
         role: 'owner',
+      },
+    });
+  });
+
+  it('returns only active rooms for the authenticated user', async () => {
+    const activeRooms = [room, { ...room, id: 'room-2', name: 'Alps trip' }];
+    prisma.roomMember.findMany.mockResolvedValue(
+      activeRooms.map((roomItem) => ({
+        room: { ...roomItem, internalField: 'must not be returned' },
+      })),
+    );
+
+    await expect(service.findAll('user-1', 1, 10)).resolves.toEqual(
+      activeRooms,
+    );
+
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', leftAt: null },
+      select: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+            createdAt: true,
+          },
+        },
+      },
+      skip: 0,
+      take: 10,
+    });
+  });
+
+  it('returns active room members by default', async () => {
+    const members = [
+      {
+        id: 'membership-1',
+        role: 'owner',
+        leftAt: null,
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+    ];
+    prisma.roomMember.findMany.mockResolvedValue(members);
+
+    await expect(service.findMembers('room-1')).resolves.toEqual([
+      {
+        id: 'membership-1',
+        role: 'owner',
+        leftAt: null,
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+    ]);
+
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1', leftAt: null },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+  });
+
+  it('can include departed members when requested', async () => {
+    const members = [
+      {
+        id: 'membership-1',
+        role: 'owner',
+        leftAt: null,
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+      {
+        id: 'membership-2',
+        role: 'member',
+        leftAt: new Date('2025-01-01'),
+        user: { id: 'user-2', name: 'Bob', email: 'bob@example.com' },
+      },
+    ];
+    prisma.roomMember.findMany.mockResolvedValue(members);
+
+    await expect(service.findMembers('room-1', true)).resolves.toEqual(members);
+
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1' },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
       },
     });
   });
