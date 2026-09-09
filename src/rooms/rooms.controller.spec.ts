@@ -48,12 +48,16 @@ describe('RoomsController', () => {
     roomsService.findAll.mockResolvedValue(rooms);
 
     await expect(
-      controller.findAll({
-        user: { userId: 'user-1' },
-      }),
+      controller.findAll(
+        {
+          user: { userId: 'user-1' },
+        },
+        1,
+        10,
+      ),
     ).resolves.toEqual(rooms);
 
-    expect(roomsService.findAll).toHaveBeenCalledWith('user-1');
+    expect(roomsService.findAll).toHaveBeenCalledWith('user-1', 1, 10);
   });
 
   it('lists active room members by default', async () => {

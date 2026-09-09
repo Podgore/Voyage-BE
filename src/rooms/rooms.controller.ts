@@ -8,6 +8,7 @@ import {
   Get,
   Param,
   ParseBoolPipe,
+  ParseIntPipe,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -24,9 +25,13 @@ export class RoomsController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  findAll(@Req() req: AuthenticatedRequest) {
+  findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
     const userId = req.user.userId;
-    return this.roomsService.findAll(userId);
+    return this.roomsService.findAll(userId, page, limit);
   }
 
   @UseGuards(JwtAuthGuard)

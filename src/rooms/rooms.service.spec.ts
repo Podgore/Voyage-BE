@@ -73,7 +73,9 @@ describe('RoomsService', () => {
       })),
     );
 
-    await expect(service.findAll('user-1')).resolves.toEqual(activeRooms);
+    await expect(service.findAll('user-1', 1, 10)).resolves.toEqual(
+      activeRooms,
+    );
 
     expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
       where: { userId: 'user-1', leftAt: null },
@@ -87,6 +89,8 @@ describe('RoomsService', () => {
           },
         },
       },
+      skip: 0,
+      take: 10,
     });
   });
 

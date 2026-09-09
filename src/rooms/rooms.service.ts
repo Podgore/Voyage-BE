@@ -33,7 +33,11 @@ export class RoomsService {
     });
   }
 
-  async findAll(userId: string): Promise<RoomListResponseDto[]> {
+  async findAll(
+    userId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<RoomListResponseDto[]> {
     const memberships = await this.prisma.roomMember.findMany({
       where: {
         userId,
@@ -49,6 +53,8 @@ export class RoomsService {
           },
         },
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
     return memberships.map(({ room }) => ({
