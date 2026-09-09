@@ -1,8 +1,3 @@
-enum RoomRole {
-  MEMBER @map("member")
-  OWNER  @map("owner")
-}
-
 model RoomMember {
   id       String    @id @default(uuid())
   userId   String    @map("user_id")
