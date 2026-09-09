@@ -26,7 +26,8 @@ describe('RoomsService', () => {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
-    roomMember: { findMany: jest.fn() },
+    room: { findUnique: jest.fn() },
+    roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -118,6 +119,22 @@ describe('RoomsService', () => {
         leftAt: true,
         user: { select: { id: true, name: true, email: true } },
       },
+    });
+  });
+
+  it('returns room hub information for the authenticated user', async () => {
+    prisma.room.findUnique.mockResolvedValue({
+      id: 'room-1',
+      name: 'Summer trip',
+      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+    });
+    prisma.roomMember.findFirst.mockResolvedValue({ role: 'owner' });
+
+    await expect(service.getRoomHub('room-1', 'user-1')).resolves.toEqual({
+      id: 'room-1',
+      name: 'Summer trip',
+      myRole: 'owner',
+      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
     });
   });
 });

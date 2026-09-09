@@ -11,13 +11,14 @@ import { RoomRole } from '../rbac/enums/room-role.enum';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
+import { RoomHubDto } from './dto/room-hub-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 
 @Injectable()
 export class RoomsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateRoomDto, userId: string) {
     const inviteCode = generateInviteCode();
@@ -42,7 +43,11 @@ export class RoomsService {
         const room = await tx.room.findUnique({
           where: { inviteCode: dto.inviteCode },
         });
-        if (!room) throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+        if (!room) {
+          throw new NotFoundException(
+            ERROR_MESSAGES.ROOM_NOT_FOUND_BY_INVITE_CODE,
+          );
+        }
 
         const membership = await tx.roomMember.findUnique({
           where: { userId_roomId: { userId, roomId: room.id } },
@@ -124,5 +129,31 @@ export class RoomsService {
       leftAt: membership.leftAt,
       user: membership.user,
     }));
+  }
+
+  async getRoomHub(roomId: string, userId: string): Promise<RoomHubDto> {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      include: { widgets: true },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    const membership = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId, leftAt: null },
+    });
+
+    return {
+      id: room.id,
+      name: room.name,
+      myRole: membership?.role,
+      widgets: room.widgets.map((widget) => ({
+        id: widget.id,
+        type: widget.type,
+        name: widget.name,
+      })),
+    };
   }
 }

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { PrismaService } from '../prisma/prisma.service';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
 
@@ -12,13 +13,17 @@ describe('RoomsController', () => {
     create: jest.fn(),
     findAll: jest.fn(),
     findMembers: jest.fn(),
+    getRoomHub: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RoomsController],
-      providers: [{ provide: RoomsService, useValue: roomsService }],
+      providers: [
+        { provide: RoomsService, useValue: roomsService },
+        { provide: PrismaService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<RoomsController>(RoomsController);
@@ -80,5 +85,15 @@ describe('RoomsController', () => {
     );
 
     expect(roomsService.findMembers).toHaveBeenCalledWith('room-1', true);
+  });
+
+  it('returns room hub info for the authenticated user', async () => {
+    const roomHub = { id: 'room-1', name: 'Summer trip', widgets: [] };
+    roomsService.getRoomHub.mockResolvedValue(roomHub);
+
+    await expect(
+      controller.getRoomHub('room-1', { user: { userId: 'user-1' } } as never),
+    ).resolves.toBe(roomHub);
+    expect(roomsService.getRoomHub).toHaveBeenCalledWith('room-1', 'user-1');
   });
 });

@@ -175,5 +175,5 @@ docker-compose up -d --build backend
 
 ## Rooms
 
-`POST /rooms` — creates a new room. Requires authentication (Bearer token).
-Creator is automatically added to room_members with role 'owner'. A unique invite code is generated for the room.
+`POST /rooms` — creates a new room. Requires authentication.
+`GET /rooms/:roomId` — returns room hub info (name, current user's role, connected widgets). Accessible only to active room members.
