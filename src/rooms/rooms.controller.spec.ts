@@ -14,6 +14,7 @@ describe('RoomsController', () => {
     findAll: jest.fn(),
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
+    transferOwnership: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -95,5 +96,16 @@ describe('RoomsController', () => {
       controller.getRoomHub('room-1', { user: { userId: 'user-1' } } as never),
     ).resolves.toBe(roomHub);
     expect(roomsService.getRoomHub).toHaveBeenCalledWith('room-1', 'user-1');
+  });
+
+  it('transfers ownership for the authenticated owner', async () => {
+    const result = { roomId: 'room-1', newOwnerId: 'user-2' };
+    roomsService.transferOwnership.mockResolvedValue(result);
+
+    await expect(
+      controller.transferOwnership('room-1', { targetUserId: 'user-2' }, {
+        user: { userId: 'user-1' },
+      } as never),
+    ).resolves.toBe(result);
   });
 });

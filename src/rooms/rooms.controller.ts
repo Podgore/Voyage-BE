@@ -15,8 +15,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
+import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
@@ -64,5 +66,19 @@ export class RoomsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.roomsService.getRoomHub(roomId, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Post(':roomId/transfer-ownership')
+  transferOwnership(
+    @Param('roomId') roomId: string,
+    @Body() dto: TransferOwnershipDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.roomsService.transferOwnership(
+      roomId,
+      req.user.userId,
+      dto.targetUserId,
+    );
   }
 }

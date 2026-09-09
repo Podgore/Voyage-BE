@@ -1,0 +1,4 @@
+enum RoomRole {
+  MEMBER @map("member")
+  OWNER  @map("owner")
+}

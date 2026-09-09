@@ -1,4 +1,6 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { RoomRole } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsService } from './rooms.service';
 
@@ -19,6 +21,7 @@ describe('RoomsService', () => {
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
     },
   };
@@ -43,7 +46,11 @@ describe('RoomsService', () => {
       service.create({ name: 'Summer trip' }, 'user-1'),
     ).resolves.toBe(room);
     expect(transaction.roomMember.create).toHaveBeenCalledWith({
-      data: { roomId: 'room-1', userId: 'user-1', role: 'owner' },
+      data: {
+        roomId: 'room-1',
+        userId: 'user-1',
+        role: RoomRole.OWNER,
+      },
     });
   });
 
@@ -136,5 +143,35 @@ describe('RoomsService', () => {
       myRole: 'owner',
       widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
     });
+  });
+
+  it('transfers ownership to an active member', async () => {
+    transaction.roomMember.findFirst.mockResolvedValue({
+      id: 'member-1',
+      role: RoomRole.MEMBER,
+    });
+
+    await expect(
+      service.transferOwnership('room-1', 'owner-1', 'user-2'),
+    ).resolves.toEqual({ roomId: 'room-1', newOwnerId: 'user-2' });
+  });
+
+  it('throws when target is not an active member', async () => {
+    transaction.roomMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.transferOwnership('room-1', 'owner-1', 'user-2'),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('throws when target is already the owner', async () => {
+    transaction.roomMember.findFirst.mockResolvedValue({
+      id: 'member-1',
+      role: RoomRole.OWNER,
+    });
+
+    await expect(
+      service.transferOwnership('room-1', 'owner-1', 'user-2'),
+    ).rejects.toThrow(ConflictException);
   });
 });

@@ -175,5 +175,7 @@ docker-compose up -d --build backend
 
 ## Rooms
 
+`POST /rooms/:roomId/transfer-ownership` transfers room ownership to another active member. Owner only. Body: `{ "targetUserId": "..." }`.
+
 `POST /rooms` — creates a new room. Requires authentication.
 `GET /rooms/:roomId` — returns room hub info (name, current user's role, connected widgets). Accessible only to active room members.

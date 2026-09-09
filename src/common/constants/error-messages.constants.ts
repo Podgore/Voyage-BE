@@ -18,4 +18,6 @@ export const ERROR_MESSAGES = {
   ALREADY_ROOM_MEMBER: 'User is already a member of this room',
   EMAIL_ALREADY_EXISTS: 'A user with this email already exists',
   ROOM_NOT_FOUND: 'Room not found',
+  TARGET_NOT_ACTIVE_MEMBER: 'Target user is not an active room member',
+  TARGET_ALREADY_OWNER: 'Target user is already the room owner',
 } as const;

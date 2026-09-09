@@ -3,11 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, RoomRole } from '../../generated/prisma/client';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
-import { RoomRole } from '../rbac/enums/room-role.enum';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
@@ -155,5 +154,36 @@ export class RoomsService {
         name: widget.name,
       })),
     };
+  }
+
+  async transferOwnership(
+    roomId: string,
+    currentOwnerId: string,
+    targetUserId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const targetMembership = await tx.roomMember.findFirst({
+        where: { roomId, userId: targetUserId, leftAt: null },
+      });
+
+      if (!targetMembership) {
+        throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
+      }
+
+      if (targetMembership.role === RoomRole.OWNER) {
+        throw new ConflictException(ERROR_MESSAGES.TARGET_ALREADY_OWNER);
+      }
+
+      await tx.roomMember.update({
+        where: { userId_roomId: { roomId, userId: currentOwnerId } },
+        data: { role: RoomRole.MEMBER },
+      });
+      await tx.roomMember.update({
+        where: { id: targetMembership.id },
+        data: { role: RoomRole.OWNER },
+      });
+
+      return { roomId, newOwnerId: targetUserId };
+    });
   }
 }

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { RoomRole } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../../common/constants/error-messages.constants';
 import { BaseRoomAccessGuard } from './base-room-access.guard';
-import { RoomRole } from '../enums/room-role.enum';
 
 @Injectable()
 export class RoomOwnerGuard extends BaseRoomAccessGuard {
