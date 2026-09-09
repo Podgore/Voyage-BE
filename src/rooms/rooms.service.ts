@@ -1,36 +1,81 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
+import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
+import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
+import { RoomRole } from '../rbac/enums/room-role.enum';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { JoinRoomDto } from './dto/join-room.dto';
+import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
-import { RoomRole } from '../rbac/enums/room-role.enum';
 
 @Injectable()
 export class RoomsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateRoomDto, userId: string) {
     const inviteCode = generateInviteCode();
 
     return this.prisma.$transaction(async (tx) => {
       const room = await tx.room.create({
-        data: {
-          name: dto.name,
-          inviteCode,
-        },
+        data: { name: dto.name, inviteCode },
       });
-
       await tx.roomMember.create({
-        data: {
-          roomId: room.id,
-          userId,
-          role: RoomRole.OWNER,
-        },
+        data: { roomId: room.id, userId, role: RoomRole.OWNER },
       });
-
       return room;
     });
+  }
+
+  async joinRoom(
+    dto: JoinRoomDto,
+    userId: string,
+  ): Promise<JoinRoomResponseDto> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const room = await tx.room.findUnique({
+          where: { inviteCode: dto.inviteCode },
+        });
+        if (!room) throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+
+        const membership = await tx.roomMember.findUnique({
+          where: { userId_roomId: { userId, roomId: room.id } },
+        });
+        if (membership?.leftAt === null) {
+          throw new ConflictException(ERROR_MESSAGES.ALREADY_ROOM_MEMBER);
+        }
+
+        const member = membership
+          ? await tx.roomMember.update({
+              where: { id: membership.id },
+              data: { leftAt: null, role: RoomRole.MEMBER },
+            })
+          : await tx.roomMember.create({
+              data: { roomId: room.id, userId, role: RoomRole.MEMBER },
+            });
+
+        return {
+          id: member.id,
+          roomId: member.roomId,
+          userId: member.userId,
+          role: member.role,
+        };
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code as PrismaErrorCode) === PrismaErrorCode.UNIQUE_CONSTRAINT
+      ) {
+        throw new ConflictException(ERROR_MESSAGES.ALREADY_ROOM_MEMBER);
+      }
+      throw error;
+    }
   }
 
   async findAll(
@@ -39,18 +84,10 @@ export class RoomsService {
     limit = 10,
   ): Promise<RoomListResponseDto[]> {
     const memberships = await this.prisma.roomMember.findMany({
-      where: {
-        userId,
-        leftAt: null,
-      },
+      where: { userId, leftAt: null },
       select: {
         room: {
-          select: {
-            id: true,
-            name: true,
-            inviteCode: true,
-            createdAt: true,
-          },
+          select: { id: true, name: true, inviteCode: true, createdAt: true },
         },
       },
       skip: (page - 1) * limit,
@@ -70,22 +107,13 @@ export class RoomsService {
     includeDeparted = false,
   ): Promise<RoomMemberResponseDto[]> {
     const memberships = await this.prisma.roomMember.findMany({
-      where: {
-        roomId,
-        ...(includeDeparted ? {} : { leftAt: null }),
-      },
+      where: { roomId, ...(includeDeparted ? {} : { leftAt: null }) },
       select: {
         id: true,
         role: true,
         joinedAt: true,
         leftAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        user: { select: { id: true, name: true, email: true } },
       },
     });
 

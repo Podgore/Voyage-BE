@@ -29,12 +29,9 @@ describe('RoomsController', () => {
     roomsService.create.mockResolvedValue(createdRoom);
 
     await expect(
-      controller.create(
-        { name: 'Summer trip' },
-        {
-          user: { userId: 'user-1' },
-        },
-      ),
+      controller.create({ name: 'Summer trip' }, {
+        user: { userId: 'user-1', email: 'user1@example.com' },
+      } as never),
     ).resolves.toBe(createdRoom);
 
     expect(roomsService.create).toHaveBeenCalledWith(

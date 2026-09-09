@@ -14,5 +14,7 @@ export const ERROR_MESSAGES = {
   CROSS_ROOM_MEMBERSHIP: (roomMemberId: string, roomId: string) =>
     `Room member ${roomMemberId} does not belong to room ${roomId}`,
   INVALID_ROOM_MEMBER_IDS: 'One or more roomMemberId values are invalid',
+  ROOM_NOT_FOUND: 'Room not found for the provided invite code',
+  ALREADY_ROOM_MEMBER: 'User is already a member of this room',
   EMAIL_ALREADY_EXISTS: 'A user with this email already exists',
 } as const;

@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { JoinRoomDto } from './dto/join-room.dto';
 
 @ApiTags('Rooms')
 @ApiBearerAuth()
@@ -49,5 +50,11 @@ export class RoomsController {
   create(@Body() dto: CreateRoomDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user.userId;
     return this.roomsService.create(dto, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('join')
+  joinRoom(@Body() dto: JoinRoomDto, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.joinRoom(dto, req.user.userId);
   }
 }
