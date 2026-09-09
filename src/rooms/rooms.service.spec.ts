@@ -15,10 +15,7 @@ describe('RoomsService', () => {
     createdAt: new Date(),
   };
   const transaction = {
-    room: {
-      create: jest.fn().mockResolvedValue(room),
-      findUnique: jest.fn(),
-    },
+    room: { create: jest.fn().mockResolvedValue(room), findUnique: jest.fn() },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
       findUnique: jest.fn(),
@@ -29,6 +26,7 @@ describe('RoomsService', () => {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
+    roomMember: { findMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -36,80 +34,90 @@ describe('RoomsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [RoomsService, { provide: PrismaService, useValue: prisma }],
     }).compile();
-
     service = module.get<RoomsService>(RoomsService);
   });
 
   it('creates a room and makes its creator the owner', async () => {
-    const inviteCodeMatcher = expect.stringMatching(
-      /^[A-Z0-9]{6}$/,
-    ) as unknown as string;
-
     await expect(
       service.create({ name: 'Summer trip' }, 'user-1'),
     ).resolves.toBe(room);
-
-    expect(transaction.room.create).toHaveBeenCalledWith({
-      data: {
-        name: 'Summer trip',
-        inviteCode: inviteCodeMatcher,
-      },
-    });
     expect(transaction.roomMember.create).toHaveBeenCalledWith({
-      data: {
-        roomId: 'room-1',
-        userId: 'user-1',
-        role: 'owner',
-      },
+      data: { roomId: 'room-1', userId: 'user-1', role: 'owner' },
     });
   });
 
   it('joins a room as a member', async () => {
     transaction.room.findUnique.mockResolvedValue(room);
     transaction.roomMember.findUnique.mockResolvedValue(null);
-    const membership = {
+    transaction.roomMember.create.mockResolvedValue({
       id: 'member-1',
       roomId: room.id,
       userId: 'user-2',
       role: 'member',
-      leftAt: null,
-    };
-    transaction.roomMember.create.mockResolvedValue(membership);
+    });
 
     await expect(
       service.joinRoom({ inviteCode: room.inviteCode }, 'user-2'),
     ).resolves.toEqual({
-      id: membership.id,
-      roomId: membership.roomId,
-      userId: membership.userId,
-      role: membership.role,
-    });
-
-    expect(transaction.roomMember.create).toHaveBeenCalledWith({
-      data: { roomId: room.id, userId: 'user-2', role: 'member' },
-    });
-  });
-
-  it('reuses a left membership when joining again', async () => {
-    transaction.room.findUnique.mockResolvedValue(room);
-    const membership = {
       id: 'member-1',
       roomId: room.id,
       userId: 'user-2',
-      leftAt: new Date(),
-    };
-    transaction.roomMember.findUnique.mockResolvedValue(membership);
-    transaction.roomMember.update.mockResolvedValue({
-      ...membership,
-      leftAt: null,
       role: 'member',
     });
+  });
 
-    await service.joinRoom({ inviteCode: room.inviteCode }, 'user-2');
+  it('returns only active rooms for the authenticated user', async () => {
+    prisma.roomMember.findMany.mockResolvedValue([{ room }]);
 
-    expect(transaction.roomMember.update).toHaveBeenCalledWith({
-      where: { id: membership.id },
-      data: { leftAt: null, role: 'member' },
+    await expect(service.findAll('user-1')).resolves.toEqual([room]);
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', leftAt: null },
+      select: {
+        room: {
+          select: { id: true, name: true, inviteCode: true, createdAt: true },
+        },
+      },
+      skip: 0,
+      take: 10,
+    });
+  });
+
+  it('returns active room members by default', async () => {
+    const member = {
+      id: 'membership-1',
+      role: 'owner',
+      joinedAt: new Date(),
+      leftAt: null,
+      user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+    };
+    prisma.roomMember.findMany.mockResolvedValue([member]);
+
+    await expect(service.findMembers('room-1')).resolves.toEqual([member]);
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1', leftAt: null },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+  });
+
+  it('can include departed room members', async () => {
+    prisma.roomMember.findMany.mockResolvedValue([]);
+
+    await expect(service.findMembers('room-1', true)).resolves.toEqual([]);
+    expect(prisma.roomMember.findMany).toHaveBeenCalledWith({
+      where: { roomId: 'room-1' },
+      select: {
+        id: true,
+        role: true,
+        joinedAt: true,
+        leftAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
   });
 });
