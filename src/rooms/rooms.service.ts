@@ -13,6 +13,7 @@ import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 import { RoomHubDto } from './dto/room-hub-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 
 @Injectable()
@@ -154,6 +155,35 @@ export class RoomsService {
         name: widget.name,
       })),
     };
+  }
+
+  async updateRoom(roomId: string, dto: UpdateRoomDto) {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    const updateData: Prisma.RoomUpdateInput = {};
+
+    if (dto.name !== undefined) {
+      updateData.name = dto.name;
+    }
+
+    if (dto.regenerateInviteCode) {
+      updateData.inviteCode = generateInviteCode();
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return room;
+    }
+
+    return this.prisma.room.update({
+      where: { id: roomId },
+      data: updateData,
+    });
   }
 
   async transferOwnership(
