@@ -1,6 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoomRole } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsService } from './rooms.service';
 
@@ -25,11 +24,17 @@ describe('RoomsService', () => {
       update: jest.fn(),
     },
   };
-  const prisma = {
+  const prisma: {
+    $transaction: (
+      callback: (client: typeof transaction) => Promise<unknown>,
+    ) => Promise<unknown>;
+    room: { findUnique: jest.Mock; update: jest.Mock };
+    roomMember: { findMany: jest.Mock; findFirst: jest.Mock };
+  } = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
-    room: { findUnique: jest.fn() },
+    room: { findUnique: jest.fn(), update: jest.fn() },
     roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
   };
 
@@ -49,7 +54,7 @@ describe('RoomsService', () => {
       data: {
         roomId: 'room-1',
         userId: 'user-1',
-        role: RoomRole.OWNER,
+        role: 'OWNER',
       },
     });
   });
@@ -145,10 +150,62 @@ describe('RoomsService', () => {
     });
   });
 
+  it('updates the room name for the owner', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+    prisma.room.update.mockResolvedValue({
+      ...room,
+      name: 'Updated summer trip',
+    });
+
+    await expect(
+      service.updateRoom('room-1', { name: 'Updated summer trip' }),
+    ).resolves.toEqual({
+      ...room,
+      name: 'Updated summer trip',
+    });
+
+    expect(prisma.room.update).toHaveBeenCalledWith({
+      where: { id: 'room-1' },
+      data: { name: 'Updated summer trip' },
+    });
+  });
+
+  it('regenerates the invite code for the owner', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+    prisma.room.update.mockResolvedValue({
+      ...room,
+      inviteCode: 'XYZ789',
+    });
+
+    await expect(
+      service.updateRoom('room-1', { regenerateInviteCode: true }),
+    ).resolves.toEqual({
+      ...room,
+      inviteCode: 'XYZ789',
+    });
+
+    const roomUpdateMock = prisma.room.update as jest.MockedFunction<
+      typeof prisma.room.update
+    >;
+    const firstCall = roomUpdateMock.mock.calls[0] as
+      | [
+          {
+            where: { id: string };
+            data: { inviteCode: string };
+          },
+        ]
+      | undefined;
+
+    expect(firstCall).toBeDefined();
+    expect(firstCall?.[0].where).toEqual({ id: 'room-1' });
+    expect(firstCall?.[0].data.inviteCode).toBeTruthy();
+    expect(firstCall?.[0].data.inviteCode).not.toBe(room.inviteCode);
+  });
+
   it('transfers ownership to an active member', async () => {
     transaction.roomMember.findFirst.mockResolvedValue({
       id: 'member-1',
-      role: RoomRole.MEMBER,
+      role: 'member',
     });
 
     await expect(
@@ -167,7 +224,7 @@ describe('RoomsService', () => {
   it('throws when target is already the owner', async () => {
     transaction.roomMember.findFirst.mockResolvedValue({
       id: 'member-1',
-      role: RoomRole.OWNER,
+      role: 'OWNER',
     });
 
     await expect(

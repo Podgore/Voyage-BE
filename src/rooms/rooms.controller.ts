@@ -6,6 +6,7 @@ import {
   Param,
   ParseBoolPipe,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -19,6 +20,7 @@ import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
@@ -66,6 +68,12 @@ export class RoomsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.roomsService.getRoomHub(roomId, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Patch(':roomId')
+  updateRoom(@Param('roomId') roomId: string, @Body() dto: UpdateRoomDto) {
+    return this.roomsService.updateRoom(roomId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
