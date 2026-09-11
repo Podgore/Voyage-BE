@@ -13,6 +13,7 @@ describe('RoomsController', () => {
     create: jest.fn(),
     findAll: jest.fn(),
     findMembers: jest.fn(),
+    findWidgets: jest.fn(),
     getRoomHub: jest.fn(),
     updateRoom: jest.fn(),
     connectWidget: jest.fn(),
@@ -88,6 +89,15 @@ describe('RoomsController', () => {
     );
 
     expect(roomsService.findMembers).toHaveBeenCalledWith('room-1', true);
+  });
+
+  it('lists connected widgets for a room member', async () => {
+    const widgets = [{ id: 'widget-1', type: 'chat', name: 'Chat' }];
+    roomsService.findWidgets.mockResolvedValue(widgets);
+
+    await expect(controller.findWidgets('room-1')).resolves.toEqual(widgets);
+
+    expect(roomsService.findWidgets).toHaveBeenCalledWith('room-1');
   });
 
   it('returns room hub info for the authenticated user', async () => {

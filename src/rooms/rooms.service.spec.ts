@@ -136,6 +136,29 @@ describe('RoomsService', () => {
     });
   });
 
+  it('lists connected widgets for a room', async () => {
+    prisma.room.findUnique.mockResolvedValue({
+      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+    });
+
+    await expect(service.findWidgets('room-1')).resolves.toEqual([
+      { id: 'widget-1', type: 'chat', name: 'Chat' },
+    ]);
+
+    expect(prisma.room.findUnique).toHaveBeenCalledWith({
+      where: { id: 'room-1' },
+      select: {
+        widgets: {
+          select: {
+            id: true,
+            type: true,
+            name: true,
+          },
+        },
+      },
+    });
+  });
+
   it('returns room hub information for the authenticated user', async () => {
     prisma.room.findUnique.mockResolvedValue({
       id: 'room-1',

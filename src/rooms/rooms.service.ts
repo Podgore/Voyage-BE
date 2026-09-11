@@ -13,6 +13,7 @@ import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 import { RoomHubDto } from './dto/room-hub-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
+import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { generateInviteCode } from './utils/invite-code.util';
@@ -129,6 +130,31 @@ export class RoomsService {
       joinedAt: membership.joinedAt,
       leftAt: membership.leftAt,
       user: membership.user,
+    }));
+  }
+
+  async findWidgets(roomId: string): Promise<RoomWidgetDto[]> {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: {
+        widgets: {
+          select: {
+            id: true,
+            type: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    return room.widgets.map((widget) => ({
+      id: widget.id,
+      type: widget.type,
+      name: widget.name,
     }));
   }
 

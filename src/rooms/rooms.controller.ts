@@ -20,6 +20,7 @@ import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomsService } from './rooms.service';
@@ -60,6 +61,12 @@ export class RoomsController {
   @Post('join')
   joinRoom(@Body() dto: JoinRoomDto, @Req() req: AuthenticatedRequest) {
     return this.roomsService.joinRoom(dto, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Get(':roomId/widgets')
+  findWidgets(@Param('roomId') roomId: string): Promise<RoomWidgetDto[]> {
+    return this.roomsService.findWidgets(roomId);
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
