@@ -15,6 +15,7 @@ describe('RoomsController', () => {
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
     updateRoom: jest.fn(),
+    connectWidget: jest.fn(),
     transferOwnership: jest.fn(),
   };
 
@@ -109,6 +110,30 @@ describe('RoomsController', () => {
 
     expect(roomsService.updateRoom).toHaveBeenCalledWith('room-1', {
       name: 'Updated trip',
+    });
+  });
+
+  it('connects a widget for the authenticated owner', async () => {
+    const result = {
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'chat',
+      name: 'Chat',
+    };
+    roomsService.connectWidget.mockResolvedValue(result);
+
+    await expect(
+      controller.connectWidget(
+        'room-1',
+        { type: 'chat' },
+        {
+          user: { userId: 'user-1' },
+        },
+      ),
+    ).resolves.toBe(result);
+
+    expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {
+      type: 'chat',
     });
   });
 

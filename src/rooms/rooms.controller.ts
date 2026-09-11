@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
+import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
@@ -74,6 +75,15 @@ export class RoomsController {
   @Patch(':roomId')
   updateRoom(@Param('roomId') roomId: string, @Body() dto: UpdateRoomDto) {
     return this.roomsService.updateRoom(roomId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Post(':roomId/widgets')
+  connectWidget(
+    @Param('roomId') roomId: string,
+    @Body() dto: ConnectWidgetDto,
+  ) {
+    return this.roomsService.connectWidget(roomId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)

@@ -30,12 +30,14 @@ describe('RoomsService', () => {
     ) => Promise<unknown>;
     room: { findUnique: jest.Mock; update: jest.Mock };
     roomMember: { findMany: jest.Mock; findFirst: jest.Mock };
+    widget: { create: jest.Mock };
   } = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
     room: { findUnique: jest.fn(), update: jest.fn() },
     roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
+    widget: { create: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -200,6 +202,45 @@ describe('RoomsService', () => {
     expect(firstCall?.[0].where).toEqual({ id: 'room-1' });
     expect(firstCall?.[0].data.inviteCode).toBeTruthy();
     expect(firstCall?.[0].data.inviteCode).not.toBe(room.inviteCode);
+  });
+
+  it('connects a widget to the room', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+    prisma.widget.create.mockResolvedValue({
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'chat',
+      name: 'Chat',
+    });
+
+    await expect(
+      service.connectWidget('room-1', { type: 'chat' }),
+    ).resolves.toEqual({
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'chat',
+      name: 'Chat',
+    });
+
+    expect(prisma.widget.create).toHaveBeenCalledWith({
+      data: {
+        roomId: 'room-1',
+        type: 'chat',
+        name: 'Chat',
+      },
+    });
+  });
+
+  it('throws a conflict when a widget type is already connected to the room', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+    prisma.widget.create.mockRejectedValue({
+      code: 'P2002',
+      message: 'Unique constraint failed',
+    });
+
+    await expect(
+      service.connectWidget('room-1', { type: 'chat' }),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('transfers ownership to an active member', async () => {
