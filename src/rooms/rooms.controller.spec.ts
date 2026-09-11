@@ -17,6 +17,7 @@ describe('RoomsController', () => {
     getRoomHub: jest.fn(),
     updateRoom: jest.fn(),
     connectWidget: jest.fn(),
+    disconnectWidget: jest.fn(),
     transferOwnership: jest.fn(),
   };
 
@@ -145,6 +146,26 @@ describe('RoomsController', () => {
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {
       type: 'chat',
     });
+  });
+
+  it('disconnects a widget for the authenticated owner', async () => {
+    const result = {
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'chat',
+      name: 'Chat',
+    };
+    roomsService.disconnectWidget.mockResolvedValue(result);
+
+    await expect(
+      controller.disconnectWidget('room-1', 'widget-1', { confirm: true }),
+    ).resolves.toBe(result);
+
+    expect(roomsService.disconnectWidget).toHaveBeenCalledWith(
+      'room-1',
+      'widget-1',
+      { confirm: true },
+    );
   });
 
   it('transfers ownership for the authenticated owner', async () => {

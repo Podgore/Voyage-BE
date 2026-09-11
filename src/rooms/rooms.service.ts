@@ -7,8 +7,10 @@ import { Prisma, RoomRole } from '../../generated/prisma/client';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException } from '@nestjs/common';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { DisconnectWidgetDto } from './dto/disconnect-widget.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 import { RoomHubDto } from './dto/room-hub-response.dto';
@@ -213,7 +215,10 @@ export class RoomsService {
     });
   }
 
-  async connectWidget(roomId: string, dto: ConnectWidgetDto) {
+  async connectWidget(
+    roomId: string,
+    dto: ConnectWidgetDto,
+  ): Promise<RoomWidgetDto> {
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
     });
@@ -225,13 +230,19 @@ export class RoomsService {
     const widgetName = this.getWidgetDisplayName(dto.type);
 
     try {
-      return await this.prisma.widget.create({
+      const createdWidget = await this.prisma.widget.create({
         data: {
           roomId,
           type: dto.type,
           name: widgetName,
         },
       });
+
+      return {
+        id: createdWidget.id,
+        type: createdWidget.type,
+        name: createdWidget.name,
+      };
     } catch (error: unknown) {
       const prismaError = error as { code?: string };
 
@@ -248,6 +259,87 @@ export class RoomsService {
 
       throw error;
     }
+  }
+
+  async disconnectWidget(
+    roomId: string,
+    widgetId: string,
+    dto: DisconnectWidgetDto,
+  ): Promise<RoomWidgetDto> {
+    if (!dto.confirm) {
+      throw new BadRequestException(
+        ERROR_MESSAGES.WIDGET_DISCONNECT_CONFIRMATION_REQUIRED,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const widget = await tx.widget.findUnique({
+        where: { id: widgetId },
+      });
+
+      if (!widget) {
+        throw new NotFoundException(ERROR_MESSAGES.WIDGET_NOT_FOUND);
+      }
+
+      if (widget.roomId !== roomId) {
+        throw new NotFoundException(ERROR_MESSAGES.WIDGET_NOT_FOUND_IN_ROOM);
+      }
+
+      const expenses = await tx.expense.findMany({
+        where: { widgetId },
+        select: { id: true },
+      });
+
+      if (widget.type === 'expenses' && expenses.length > 0) {
+        const expenseIds = expenses.map((expense) => expense.id);
+        const unpaidShare = await tx.expenseShare.findFirst({
+          where: {
+            expenseId: { in: expenseIds },
+            isPaid: false,
+          },
+        });
+
+        if (unpaidShare) {
+          throw new ConflictException(
+            ERROR_MESSAGES.EXPENSE_WIDGET_HAS_UNPAID_SHARES,
+          );
+        }
+      }
+
+      const expenseIds = expenses.map((expense) => expense.id);
+
+      if (expenseIds.length > 0) {
+        await tx.expenseShare.deleteMany({
+          where: { expenseId: { in: expenseIds } },
+        });
+        await tx.expense.deleteMany({
+          where: { id: { in: expenseIds } },
+        });
+      }
+
+      await tx.task.deleteMany({
+        where: { widgetId },
+      });
+      await tx.note.deleteMany({
+        where: { widgetId },
+      });
+      await tx.mapPoint.deleteMany({
+        where: { widgetId },
+      });
+      await tx.chatMessage.deleteMany({
+        where: { widgetId },
+      });
+
+      const deletedWidget = await tx.widget.delete({
+        where: { id: widgetId },
+      });
+
+      return {
+        id: deletedWidget.id,
+        type: deletedWidget.type,
+        name: deletedWidget.name,
+      };
+    });
   }
 
   private getWidgetDisplayName(type: string) {

@@ -23,6 +23,22 @@ describe('RoomsService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    widget: {
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+    expense: {
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    expenseShare: {
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    task: { deleteMany: jest.fn() },
+    note: { deleteMany: jest.fn() },
+    mapPoint: { deleteMany: jest.fn() },
+    chatMessage: { deleteMany: jest.fn() },
   };
   const prisma: {
     $transaction: (
@@ -30,14 +46,18 @@ describe('RoomsService', () => {
     ) => Promise<unknown>;
     room: { findUnique: jest.Mock; update: jest.Mock };
     roomMember: { findMany: jest.Mock; findFirst: jest.Mock };
-    widget: { create: jest.Mock };
+    widget: { create: jest.Mock; findUnique: jest.Mock; delete: jest.Mock };
   } = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
     room: { findUnique: jest.fn(), update: jest.fn() },
     roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
-    widget: { create: jest.fn() },
+    widget: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -240,7 +260,6 @@ describe('RoomsService', () => {
       service.connectWidget('room-1', { type: 'chat' }),
     ).resolves.toEqual({
       id: 'widget-1',
-      roomId: 'room-1',
       type: 'chat',
       name: 'Chat',
     });
@@ -263,6 +282,58 @@ describe('RoomsService', () => {
 
     await expect(
       service.connectWidget('room-1', { type: 'chat' }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('disconnects a widget and removes its related records', async () => {
+    const widget = {
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'chat',
+      name: 'Chat',
+    };
+
+    transaction.widget.findUnique.mockResolvedValue(widget);
+    transaction.expense.findMany.mockResolvedValue([]);
+    transaction.task.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.note.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.mapPoint.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.chatMessage.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.expenseShare.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.expense.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.widget.delete.mockResolvedValue(widget);
+
+    await expect(
+      service.disconnectWidget('room-1', 'widget-1', { confirm: true }),
+    ).resolves.toEqual({
+      id: 'widget-1',
+      type: 'chat',
+      name: 'Chat',
+    });
+
+    expect(transaction.expense.findMany).toHaveBeenCalledWith({
+      where: { widgetId: 'widget-1' },
+      select: { id: true },
+    });
+    expect(transaction.widget.delete).toHaveBeenCalledWith({
+      where: { id: 'widget-1' },
+    });
+  });
+
+  it('blocks disconnecting an expense widget when unpaid shares exist', async () => {
+    const widget = {
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'expenses',
+      name: 'Expenses',
+    };
+
+    transaction.widget.findUnique.mockResolvedValue(widget);
+    transaction.expense.findMany.mockResolvedValue([{ id: 'expense-1' }]);
+    transaction.expenseShare.findFirst.mockResolvedValue({ id: 'share-1' });
+
+    await expect(
+      service.disconnectWidget('room-1', 'widget-1', { confirm: true }),
     ).rejects.toThrow(ConflictException);
   });
 
