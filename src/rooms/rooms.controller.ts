@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   Param,
   ParseBoolPipe,
@@ -19,6 +20,7 @@ import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { DisconnectWidgetDto } from './dto/disconnect-widget.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
@@ -89,8 +91,18 @@ export class RoomsController {
   connectWidget(
     @Param('roomId') roomId: string,
     @Body() dto: ConnectWidgetDto,
-  ) {
+  ): Promise<RoomWidgetDto> {
     return this.roomsService.connectWidget(roomId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId/widgets/:widgetId')
+  disconnectWidget(
+    @Param('roomId') roomId: string,
+    @Param('widgetId') widgetId: string,
+    @Body() dto: DisconnectWidgetDto,
+  ): Promise<RoomWidgetDto> {
+    return this.roomsService.disconnectWidget(roomId, widgetId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)

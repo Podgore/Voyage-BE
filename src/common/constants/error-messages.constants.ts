@@ -22,4 +22,10 @@ export const ERROR_MESSAGES = {
   TARGET_ALREADY_OWNER: 'Target user is already the room owner',
   WIDGET_ALREADY_CONNECTED: (type: string) =>
     `Widget type ${type} is already connected to this room`,
+  WIDGET_NOT_FOUND: 'Widget not found',
+  WIDGET_NOT_FOUND_IN_ROOM: 'Widget not found in this room',
+  WIDGET_DISCONNECT_CONFIRMATION_REQUIRED:
+    'Widget disconnection requires explicit confirmation',
+  EXPENSE_WIDGET_HAS_UNPAID_SHARES:
+    'Cannot disconnect this expense widget while there are unpaid expense shares. Settle or delete the expenses first.',
 } as const;
