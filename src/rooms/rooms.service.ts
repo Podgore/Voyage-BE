@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 import { RoomRole } from '../rbac/enums/room-role.enum';
 
@@ -38,7 +39,7 @@ export class RoomsService {
     roomId: string,
     currentOwnerId: string,
     targetUserId: string,
-  ) {
+  ): Promise<RemoveMemberResponseDto> {
     if (targetUserId === currentOwnerId) {
       throw new BadRequestException(ERROR_MESSAGES.CANNOT_REMOVE_SELF);
     }
@@ -51,7 +52,7 @@ export class RoomsService {
       throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
     }
 
-    if (targetMembership.role === (RoomRole.OWNER as string)) {
+    if (targetMembership.role === 'owner') {
       throw new ConflictException(ERROR_MESSAGES.CANNOT_REMOVE_OWNER);
     }
 
@@ -61,5 +62,26 @@ export class RoomsService {
     });
 
     return { roomId, removedUserId: targetUserId };
+  }
+
+  async leaveRoom(roomId: string, userId: string) {
+    const membership = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId, leftAt: null },
+    });
+
+    if (!membership) {
+      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
+    }
+
+    if (membership.role === 'owner') {
+      throw new ConflictException(ERROR_MESSAGES.OWNER_MUST_TRANSFER_OWNERSHIP);
+    }
+
+    await this.prisma.roomMember.update({
+      where: { id: membership.id },
+      data: { leftAt: new Date() },
+    });
+
+    return { roomId, leftUserId: userId };
   }
 }

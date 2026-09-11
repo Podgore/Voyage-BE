@@ -1,6 +1,15 @@
-import { Controller, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
+import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -18,7 +27,7 @@ export class RoomsController {
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
-  @Post(':roomId/remove-member')
+  @Delete(':roomId/remove-member')
   removeMember(
     @Param('roomId') roomId: string,
     @Body() dto: RemoveMemberDto,
@@ -29,5 +38,11 @@ export class RoomsController {
       req.user.userId,
       dto.targetUserId,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Post(':roomId/leave')
+  leaveRoom(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.leaveRoom(roomId, req.user.userId);
   }
 }

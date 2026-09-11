@@ -112,4 +112,41 @@ describe('RoomsService', () => {
       ).rejects.toThrow(ConflictException);
     });
   });
+
+  describe('leaveRoom', () => {
+    it('lets an active member leave the room', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue({
+        id: 'member-1',
+        role: 'member',
+      });
+
+      await expect(service.leaveRoom('room-1', 'user-1')).resolves.toEqual({
+        roomId: 'room-1',
+        leftUserId: 'user-1',
+      });
+      expect(prisma.roomMember.update).toHaveBeenCalledWith({
+        where: { id: 'member-1' },
+        data: { leftAt: expect.any(Date) as Date },
+      });
+    });
+
+    it('throws when the user is not an active member', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue(null);
+
+      await expect(service.leaveRoom('room-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws when the owner tries to leave', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue({
+        id: 'member-1',
+        role: 'owner',
+      });
+
+      await expect(service.leaveRoom('room-1', 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+  });
 });
