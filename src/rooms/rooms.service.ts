@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, RoomRole } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
+import { RoomRole } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,6 +15,7 @@ import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 import { RoomHubDto } from './dto/room-hub-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
+import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 
 @Injectable()
@@ -185,5 +188,49 @@ export class RoomsService {
 
       return { roomId, newOwnerId: targetUserId };
     });
+  }
+
+  async removeMember(
+    roomId: string,
+    currentOwnerId: string,
+    targetUserId: string,
+  ): Promise<RemoveMemberResponseDto> {
+    if (targetUserId === currentOwnerId) {
+      throw new BadRequestException(ERROR_MESSAGES.CANNOT_REMOVE_SELF);
+    }
+
+    const targetMembership = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId: targetUserId, leftAt: null },
+    });
+    if (!targetMembership) {
+      throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
+    }
+    if (targetMembership.role === RoomRole.OWNER) {
+      throw new ConflictException(ERROR_MESSAGES.CANNOT_REMOVE_OWNER);
+    } else {
+      await this.prisma.roomMember.update({
+        where: { id: targetMembership.id },
+        data: { leftAt: new Date() },
+      });
+    }
+
+    return { roomId, removedUserId: targetUserId };
+  }
+
+  async leaveRoom(roomId: string, userId: string) {
+    const membership = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId, leftAt: null },
+    });
+    if (!membership) {
+      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
+    }
+    if (membership.role === RoomRole.OWNER) {
+      throw new ConflictException(ERROR_MESSAGES.OWNER_MUST_TRANSFER_OWNERSHIP);
+    }
+    await this.prisma.roomMember.update({
+      where: { id: membership.id },
+      data: { leftAt: new Date() },
+    });
+    return { roomId, leftUserId: userId };
   }
 }
