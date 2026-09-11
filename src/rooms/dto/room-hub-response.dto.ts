@@ -1,10 +1,16 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { RoomWidgetDto } from './room-widget-response.dto';
+
 export class RoomHubDto {
-  id: string;
-  name: string;
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional()
   myRole?: string;
-  widgets: {
-    id: string;
-    type: string;
-    name: string;
-  }[];
+
+  @ApiProperty({ type: [RoomWidgetDto] })
+  widgets!: RoomWidgetDto[];
 }
