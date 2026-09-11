@@ -7,6 +7,7 @@ import { Prisma, RoomRole } from '../../generated/prisma/client';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
@@ -184,6 +185,55 @@ export class RoomsService {
       where: { id: roomId },
       data: updateData,
     });
+  }
+
+  async connectWidget(roomId: string, dto: ConnectWidgetDto) {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    const widgetName = this.getWidgetDisplayName(dto.type);
+
+    try {
+      return await this.prisma.widget.create({
+        data: {
+          roomId,
+          type: dto.type,
+          name: widgetName,
+        },
+      });
+    } catch (error: unknown) {
+      const prismaError = error as { code?: string };
+
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        prismaError.code === PrismaErrorCode.UNIQUE_CONSTRAINT
+      ) {
+        throw new ConflictException(
+          ERROR_MESSAGES.WIDGET_ALREADY_CONNECTED(dto.type),
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private getWidgetDisplayName(type: string) {
+    const displayNames: Record<string, string> = {
+      chat: 'Chat',
+      notes: 'Notes',
+      tasks: 'Tasks',
+      map: 'Map',
+      expenses: 'Expenses',
+    };
+
+    return displayNames[type] ?? type;
   }
 
   async transferOwnership(

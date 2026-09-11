@@ -20,4 +20,6 @@ export const ERROR_MESSAGES = {
   ROOM_NOT_FOUND: 'Room not found',
   TARGET_NOT_ACTIVE_MEMBER: 'Target user is not an active room member',
   TARGET_ALREADY_OWNER: 'Target user is already the room owner',
+  WIDGET_ALREADY_CONNECTED: (type: string) =>
+    `Widget type ${type} is already connected to this room`,
 } as const;
