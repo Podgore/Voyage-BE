@@ -81,4 +81,10 @@ export class RoomsController {
       dto.targetUserId,
     );
   }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Post(':roomId/leave')
+  leave(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.leave(roomId, req.user.userId);
+  }
 }
