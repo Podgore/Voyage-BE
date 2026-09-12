@@ -15,6 +15,7 @@ describe('RoomsController', () => {
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
     transferOwnership: jest.fn(),
+    leave: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -53,8 +54,8 @@ describe('RoomsController', () => {
     await expect(
       controller.findAll(
         {
-          user: { userId: 'user-1' },
-        },
+          user: { userId: 'user-1', email: 'user1@example.com' },
+        } as never,
         1,
         10,
       ),
@@ -107,5 +108,17 @@ describe('RoomsController', () => {
         user: { userId: 'user-1' },
       } as never),
     ).resolves.toBe(result);
+  });
+
+  it('leaves the room for the authenticated user', async () => {
+    const result = { roomId: 'room-1', left: true };
+    roomsService.leave.mockResolvedValue(result);
+
+    await expect(
+      controller.leave('room-1', {
+        user: { userId: 'user-1', email: 'user1@example.com' },
+      } as never),
+    ).resolves.toBe(result);
+    expect(roomsService.leave).toHaveBeenCalledWith('room-1', 'user-1');
   });
 });
