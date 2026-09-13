@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   Param,
   ParseBoolPipe,
@@ -80,5 +81,17 @@ export class RoomsController {
       req.user.userId,
       dto.targetUserId,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId')
+  deleteRoom(@Param('roomId') roomId: string) {
+    return this.roomsService.deleteRoom(roomId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Post(':roomId/leave')
+  leave(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.leave(roomId, req.user.userId);
   }
 }

@@ -15,6 +15,8 @@ describe('RoomsController', () => {
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
     transferOwnership: jest.fn(),
+    deleteRoom: jest.fn(),
+    leave: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -53,8 +55,8 @@ describe('RoomsController', () => {
     await expect(
       controller.findAll(
         {
-          user: { userId: 'user-1' },
-        },
+          user: { userId: 'user-1', email: 'user1@example.com' },
+        } as never,
         1,
         10,
       ),
@@ -107,5 +109,23 @@ describe('RoomsController', () => {
         user: { userId: 'user-1' },
       } as never),
     ).resolves.toBe(result);
+  });
+
+  it('deletes the room for the authenticated owner', async () => {
+    const result = { roomId: 'room-1', deleted: true };
+    roomsService.deleteRoom.mockResolvedValue(result);
+
+    await expect(controller.deleteRoom('room-1')).resolves.toBe(result);
+    expect(roomsService.deleteRoom).toHaveBeenCalledWith('room-1');
+  });
+
+  it('leaves the room for the authenticated user', async () => {
+    const result = { roomId: 'room-1', left: true, roomDeleted: false };
+    roomsService.leave.mockResolvedValue(result);
+
+    await expect(
+      controller.leave('room-1', { user: { userId: 'user-1' } } as never),
+    ).resolves.toBe(result);
+    expect(roomsService.leave).toHaveBeenCalledWith('room-1', 'user-1');
   });
 });

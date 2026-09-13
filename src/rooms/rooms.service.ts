@@ -186,4 +186,46 @@ export class RoomsService {
       return { roomId, newOwnerId: targetUserId };
     });
   }
+  async deleteRoom(roomId: string) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    await this.prisma.room.delete({ where: { id: roomId } });
+
+    return { roomId, deleted: true };
+  }
+
+  async leave(roomId: string, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await tx.roomMember.findFirst({
+        where: { roomId, userId, leftAt: null },
+      });
+
+      if (!membership) {
+        throw new NotFoundException(ERROR_MESSAGES.NOT_ROOM_MEMBER(userId));
+      }
+
+      if (membership.role !== RoomRole.OWNER) {
+        await tx.roomMember.update({
+          where: { id: membership.id },
+          data: { leftAt: new Date() },
+        });
+        return { roomId, left: true, roomDeleted: false };
+      }
+
+      const otherActiveMembers = await tx.roomMember.count({
+        where: { roomId, leftAt: null, userId: { not: userId } },
+      });
+
+      if (otherActiveMembers > 0) {
+        throw new ConflictException(ERROR_MESSAGES.OWNER_MUST_TRANSFER_FIRST);
+      }
+
+      await tx.room.delete({ where: { id: roomId } });
+      return { roomId, left: true, roomDeleted: true };
+    });
+  }
 }
