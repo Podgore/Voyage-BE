@@ -207,12 +207,11 @@ export class RoomsService {
     }
     if (targetMembership.role === RoomRole.OWNER) {
       throw new ConflictException(ERROR_MESSAGES.CANNOT_REMOVE_OWNER);
-    } else {
-      await this.prisma.roomMember.update({
-        where: { id: targetMembership.id },
-        data: { leftAt: new Date() },
-      });
     }
+    await this.prisma.roomMember.update({
+      where: { id: targetMembership.id },
+      data: { leftAt: new Date() },
+    });
 
     return { roomId, removedUserId: targetUserId };
   }
