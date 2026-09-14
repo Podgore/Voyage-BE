@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoomRole } from '../../generated/prisma/client';
+import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsService } from './rooms.service';
 
@@ -27,19 +27,17 @@ describe('RoomsService', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
-      deleteMany: jest.fn(),
     },
   };
   const prisma = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
-    room: { findUnique: jest.fn() },
+    room: { findUnique: jest.fn(), delete: jest.fn() },
     roomMember: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
-      count: jest.fn(),
     },
   };
 
@@ -185,16 +183,39 @@ describe('RoomsService', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  describe('leave', () => {
-    it('leaves the room as a regular member', async () => {
+  describe('deleteRoom', () => {
+    it('deletes the room when it exists', async () => {
+      prisma.room.findUnique.mockResolvedValue(room);
+
+      await expect(service.deleteRoom('room-1')).resolves.toEqual({
+        roomId: 'room-1',
+        deleted: true,
+      });
+      expect(prisma.room.delete).toHaveBeenCalledWith({
+        where: { id: 'room-1' },
+      });
+    });
+
+    it('throws when the room does not exist', async () => {
+      prisma.room.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteRoom('room-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.room.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('leaveRoom', () => {
+    it('marks a regular member as departed', async () => {
       prisma.roomMember.findFirst.mockResolvedValue({
         id: 'member-1',
         role: RoomRole.MEMBER,
       });
 
-      await expect(service.leave('room-1', 'user-1')).resolves.toEqual({
+      await expect(service.leaveRoom('room-1', 'user-1')).resolves.toEqual({
         roomId: 'room-1',
-        left: true,
+        leftUserId: 'user-1',
       });
       expect(prisma.roomMember.update).toHaveBeenCalledWith({
         where: { id: 'member-1' },
@@ -202,44 +223,22 @@ describe('RoomsService', () => {
       });
     });
 
-    it('throws when user is not an active member', async () => {
-      prisma.roomMember.findFirst.mockResolvedValue(null);
-
-      await expect(service.leave('room-1', 'user-1')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('blocks the owner from leaving while other members remain', async () => {
+    it('requires an owner to transfer ownership before leaving', async () => {
       prisma.roomMember.findFirst.mockResolvedValue({
         id: 'owner-membership',
         role: RoomRole.OWNER,
       });
-      prisma.roomMember.count.mockResolvedValue(1);
-
-      await expect(service.leave('room-1', 'owner-1')).rejects.toThrow(
+      await expect(service.leaveRoom('room-1', 'owner-1')).rejects.toThrow(
         ConflictException,
       );
     });
 
-    it('deletes the room when the owner is the last active member', async () => {
-      prisma.roomMember.findFirst.mockResolvedValue({
-        id: 'owner-membership',
-        role: RoomRole.OWNER,
-      });
-      prisma.roomMember.count.mockResolvedValue(0);
+    it('throws when the user is not an active room member', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue(null);
 
-      await expect(service.leave('room-1', 'owner-1')).resolves.toEqual({
-        roomId: 'room-1',
-        left: true,
-        roomDeleted: true,
-      });
-      expect(transaction.roomMember.deleteMany).toHaveBeenCalledWith({
-        where: { roomId: 'room-1' },
-      });
-      expect(transaction.room.delete).toHaveBeenCalledWith({
-        where: { id: 'room-1' },
-      });
+      await expect(service.leaveRoom('room-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

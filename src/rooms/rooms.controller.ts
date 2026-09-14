@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   Param,
   ParseBoolPipe,
@@ -18,6 +19,7 @@ import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { RemoveMemberDto } from './dto/remove-member.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { RoomsService } from './rooms.service';
 
@@ -82,9 +84,29 @@ export class RoomsController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId')
+  deleteRoom(@Param('roomId') roomId: string) {
+    return this.roomsService.deleteRoom(roomId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId/remove-member')
+  removeMember(
+    @Param('roomId') roomId: string,
+    @Body() dto: RemoveMemberDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.roomsService.removeMember(
+      roomId,
+      req.user.userId,
+      dto.targetUserId,
+    );
+  }
+
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
   @Post(':roomId/leave')
-  leave(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
-    return this.roomsService.leave(roomId, req.user.userId);
+  leaveRoom(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.leaveRoom(roomId, req.user.userId);
   }
 }
