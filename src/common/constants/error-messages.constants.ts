@@ -20,4 +20,9 @@ export const ERROR_MESSAGES = {
   ROOM_NOT_FOUND: 'Room not found',
   TARGET_NOT_ACTIVE_MEMBER: 'Target user is not an active room member',
   TARGET_ALREADY_OWNER: 'Target user is already the room owner',
+  CANNOT_REMOVE_OWNER: 'Owner cannot be removed, transfer ownership first',
+  CANNOT_REMOVE_SELF: 'You cannot remove yourself, use leave room instead',
+  NOT_ACTIVE_ROOM_MEMBER: 'User is not an active member of this room',
+  OWNER_MUST_TRANSFER_OWNERSHIP:
+    'Owner must transfer ownership before leaving the room',
 } as const;

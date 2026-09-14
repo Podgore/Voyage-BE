@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoomRole } from '../../generated/prisma/client';
+import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsService } from './rooms.service';
 
