@@ -85,6 +85,12 @@ export class RoomsController {
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId')
+  deleteRoom(@Param('roomId') roomId: string) {
+    return this.roomsService.deleteRoom(roomId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
   @Delete(':roomId/remove-member')
   removeMember(
     @Param('roomId') roomId: string,

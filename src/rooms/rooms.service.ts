@@ -189,6 +189,17 @@ export class RoomsService {
       return { roomId, newOwnerId: targetUserId };
     });
   }
+  async deleteRoom(roomId: string) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    await this.prisma.room.delete({ where: { id: roomId } });
+
+    return { roomId, deleted: true };
+  }
 
   async removeMember(
     roomId: string,

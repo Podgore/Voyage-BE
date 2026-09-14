@@ -17,20 +17,29 @@ describe('RoomsService', () => {
     createdAt: new Date(),
   };
   const transaction = {
-    room: { create: jest.fn().mockResolvedValue(room), findUnique: jest.fn() },
+    room: {
+      create: jest.fn().mockResolvedValue(room),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
   };
   const prisma = {
     $transaction: async (
       callback: (client: typeof transaction) => Promise<unknown>,
     ): Promise<unknown> => callback(transaction),
-    room: { findUnique: jest.fn() },
-    roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
+    room: { findUnique: jest.fn(), delete: jest.fn() },
+    roomMember: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -173,5 +182,65 @@ describe('RoomsService', () => {
     await expect(
       service.transferOwnership('room-1', 'owner-1', 'user-2'),
     ).rejects.toThrow(ConflictException);
+  });
+
+  describe('deleteRoom', () => {
+    it('deletes the room when it exists', async () => {
+      prisma.room.findUnique.mockResolvedValue(room);
+
+      await expect(service.deleteRoom('room-1')).resolves.toEqual({
+        roomId: 'room-1',
+        deleted: true,
+      });
+      expect(prisma.room.delete).toHaveBeenCalledWith({
+        where: { id: 'room-1' },
+      });
+    });
+
+    it('throws when the room does not exist', async () => {
+      prisma.room.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteRoom('room-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.room.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('leaveRoom', () => {
+    it('marks a regular member as departed', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue({
+        id: 'member-1',
+        role: RoomRole.MEMBER,
+      });
+
+      await expect(service.leaveRoom('room-1', 'user-1')).resolves.toEqual({
+        roomId: 'room-1',
+        leftUserId: 'user-1',
+      });
+      expect(prisma.roomMember.update).toHaveBeenCalledWith({
+        where: { id: 'member-1' },
+        data: { leftAt: expect.any(Date) as Date },
+      });
+    });
+
+    it('requires an owner to transfer ownership before leaving', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue({
+        id: 'owner-membership',
+        role: RoomRole.OWNER,
+      });
+
+      await expect(service.leaveRoom('room-1', 'owner-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('throws when the user is not an active room member', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue(null);
+
+      await expect(service.leaveRoom('room-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });

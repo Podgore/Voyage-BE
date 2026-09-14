@@ -7,7 +7,7 @@ model RoomMember {
   leftAt   DateTime? @map("left_at")
 
   user User @relation(fields: [userId], references: [id])
-  room Room @relation(fields: [roomId], references: [id])
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   expensesPaid  Expense[]     @relation("ExpensePayer")
   expenseShares ExpenseShare[]

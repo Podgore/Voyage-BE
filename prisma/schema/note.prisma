@@ -5,8 +5,8 @@ model Note {
   text         String
   createdAt    DateTime @default(now()) @map("created_at")
 
-  widget     Widget     @relation(fields: [widgetId], references: [id])
-  roomMember RoomMember @relation(fields: [roomMemberId], references: [id])
+  widget     Widget     @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  roomMember RoomMember @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
 
   @@map("notes")
 }
