@@ -9,5 +9,6 @@ model ExpenseShare {
   expense    Expense    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   roomMember RoomMember @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
 
+  @@index([expenseId])
   @@map("expense_shares")
 }

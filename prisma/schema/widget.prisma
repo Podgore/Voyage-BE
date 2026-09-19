@@ -7,12 +7,7 @@ model Widget {
 
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  expenses     Expense[]
-  tasks        Task[]
-  mapPoints    MapPoint[]
-  notes        Note[]
-  chatMessages ChatMessage[]
-
   @@unique([roomId, type])
+  @@index([roomId])
   @@map("widgets")
 }
