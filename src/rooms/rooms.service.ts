@@ -168,11 +168,11 @@ export class RoomsService {
 
     const updateData: Prisma.RoomUpdateInput = {};
 
-    if (dto.name !== undefined) {
+    if (dto.name !== undefined && dto.name !== null) {
       updateData.name = dto.name;
     }
 
-    if (dto.regenerateInviteCode) {
+    if (dto.regenerateInviteCode === true) {
       updateData.inviteCode = generateInviteCode();
     }
 

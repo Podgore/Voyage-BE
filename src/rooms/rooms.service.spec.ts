@@ -7,6 +7,32 @@ jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
 
+type TransactionResult = {
+  id?: string;
+  roomId?: string;
+  userId?: string;
+  role?: string;
+  name?: string;
+  inviteCode?: string;
+  createdAt?: Date;
+  joinedAt?: Date | null;
+  leftAt?: Date | null;
+};
+
+type TransactionClient = {
+  room: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+  };
+  roomMember: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    findFirst: jest.Mock;
+    update: jest.Mock;
+  };
+};
+
 describe('RoomsService', () => {
   let service: RoomsService;
   const room = {
@@ -15,8 +41,12 @@ describe('RoomsService', () => {
     inviteCode: 'ABC123',
     createdAt: new Date(),
   };
-  const transaction = {
-    room: { create: jest.fn().mockResolvedValue(room), findUnique: jest.fn() },
+  const transaction: TransactionClient = {
+    room: {
+      create: jest.fn().mockResolvedValue(room),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
       findUnique: jest.fn(),
@@ -26,14 +56,14 @@ describe('RoomsService', () => {
   };
   const prisma: {
     $transaction: (
-      callback: (client: typeof transaction) => Promise<unknown>,
-    ) => Promise<unknown>;
+      callback: (client: TransactionClient) => Promise<TransactionResult>,
+    ) => Promise<TransactionResult>;
     room: { findUnique: jest.Mock; update: jest.Mock };
     roomMember: { findMany: jest.Mock; findFirst: jest.Mock };
   } = {
     $transaction: async (
-      callback: (client: typeof transaction) => Promise<unknown>,
-    ): Promise<unknown> => callback(transaction),
+      callback: (client: TransactionClient) => Promise<TransactionResult>,
+    ): Promise<TransactionResult> => callback(transaction),
     room: { findUnique: jest.fn(), update: jest.fn() },
     roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
   };
@@ -148,6 +178,18 @@ describe('RoomsService', () => {
       myRole: 'owner',
       widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
     });
+  });
+
+  it('returns the current room when there is nothing to update', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+
+    await expect(
+      service.updateRoom('room-1', {
+        name: undefined,
+        regenerateInviteCode: false,
+      }),
+    ).resolves.toEqual(room);
+    expect(prisma.room.update).not.toHaveBeenCalled();
   });
 
   it('updates the room name for the owner', async () => {
