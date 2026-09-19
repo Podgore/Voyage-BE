@@ -126,13 +126,7 @@ describe('RoomsController', () => {
     roomsService.connectWidget.mockResolvedValue(result);
 
     await expect(
-      controller.connectWidget(
-        'room-1',
-        { type: 'chat' },
-        {
-          user: { userId: 'user-1' },
-        },
-      ),
+      controller.connectWidget('room-1', { type: 'chat' }),
     ).resolves.toBe(result);
 
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {

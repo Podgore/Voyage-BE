@@ -2,6 +2,10 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  createWidgetConnection,
+  getWidgetTypeMeta,
+} from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
 
 jest.mock('../prisma/prisma.service', () => ({
@@ -35,6 +39,23 @@ type TransactionClient = {
     count: jest.Mock;
   };
 };
+
+describe('widget factory', () => {
+  it('creates a widget connection payload from a room and type', () => {
+    expect(createWidgetConnection('room-1', 'tasks')).toEqual({
+      roomId: 'room-1',
+      type: 'tasks',
+      name: 'Tasks',
+    });
+  });
+
+  it('returns metadata for supported widget types', () => {
+    expect(getWidgetTypeMeta('expenses')).toEqual({
+      type: 'expenses',
+      displayName: 'Expenses',
+    });
+  });
+});
 
 describe('RoomsService', () => {
   let service: RoomsService;

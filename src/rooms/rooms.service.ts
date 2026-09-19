@@ -18,6 +18,10 @@ import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import {
+  createWidgetConnection,
+  getWidgetTypeMeta,
+} from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
 
 @Injectable()
@@ -199,15 +203,11 @@ export class RoomsService {
       throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
     }
 
-    const widgetName = this.getWidgetDisplayName(dto.type);
+    const widgetConnection = createWidgetConnection(roomId, dto.type);
 
     try {
       return await this.prisma.widget.create({
-        data: {
-          roomId,
-          type: dto.type,
-          name: widgetName,
-        },
+        data: widgetConnection,
       });
     } catch (error: unknown) {
       const prismaError = error as { code?: string };
@@ -228,15 +228,7 @@ export class RoomsService {
   }
 
   private getWidgetDisplayName(type: string) {
-    const displayNames: Record<string, string> = {
-      chat: 'Chat',
-      notes: 'Notes',
-      tasks: 'Tasks',
-      map: 'Map',
-      expenses: 'Expenses',
-    };
-
-    return displayNames[type] ?? type;
+    return getWidgetTypeMeta(type).displayName;
   }
 
   async transferOwnership(
