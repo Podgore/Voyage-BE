@@ -24,6 +24,7 @@ type TransactionClient = {
   room: {
     create: jest.Mock;
     findUnique: jest.Mock;
+    delete: jest.Mock;
     update: jest.Mock;
   };
   roomMember: {
@@ -31,6 +32,7 @@ type TransactionClient = {
     findUnique: jest.Mock;
     findFirst: jest.Mock;
     update: jest.Mock;
+    count: jest.Mock;
   };
 };
 
@@ -44,12 +46,9 @@ describe('RoomsService', () => {
   };
   const transaction: TransactionClient = {
     room: {
-     
       create: jest.fn().mockResolvedValue(room),
-     
       findUnique: jest.fn(),
       delete: jest.fn(),
-   ,
       update: jest.fn(),
     },
     roomMember: {
@@ -64,14 +63,26 @@ describe('RoomsService', () => {
     $transaction: (
       callback: (client: TransactionClient) => Promise<TransactionResult>,
     ) => Promise<TransactionResult>;
-    room: { findUnique: jest.Mock; update: jest.Mock };
-    roomMember: { findMany: jest.Mock; findFirst: jest.Mock };
+    room: {
+      findUnique: jest.Mock;
+      update: jest.Mock;
+      delete: jest.Mock;
+    };
+    roomMember: {
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
   } = {
     $transaction: async (
       callback: (client: TransactionClient) => Promise<TransactionResult>,
     ): Promise<TransactionResult> => callback(transaction),
-    room: { findUnique: jest.fn(), update: jest.fn() },
-    roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
+    room: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    roomMember: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
