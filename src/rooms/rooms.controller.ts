@@ -7,8 +7,8 @@ import {
   Param,
   ParseBoolPipe,
   ParseIntPipe,
-  Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -73,7 +73,7 @@ export class RoomsController {
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
-  @Patch(':roomId')
+  @Put(':roomId')
   updateRoom(@Param('roomId') roomId: string, @Body() dto: UpdateRoomDto) {
     return this.roomsService.updateRoom(roomId, dto);
   }
