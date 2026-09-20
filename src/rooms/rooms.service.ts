@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, RoomRole } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
+import { RoomRole } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,8 +17,17 @@ import { RoomHubDto } from './dto/room-hub-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
+import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import {
+  createWidgetConnection,
+  getWidgetTypeMeta,
+} from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
+import {
+  applyWidgetTypePayload,
+  type WidgetCreatePayloadMap,
+} from './utils/widget-create-dispatcher.util';
 
 @Injectable()
 export class RoomsService {
@@ -195,11 +206,11 @@ export class RoomsService {
 
     const updateData: Prisma.RoomUpdateInput = {};
 
-    if (dto.name !== undefined) {
+    if (dto.name !== undefined && dto.name !== null) {
       updateData.name = dto.name;
     }
 
-    if (dto.regenerateInviteCode) {
+    if (dto.regenerateInviteCode === true) {
       updateData.inviteCode = generateInviteCode();
     }
 
@@ -222,16 +233,29 @@ export class RoomsService {
       throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
     }
 
-    const widgetName = this.getWidgetDisplayName(dto.type);
+    const widgetConnection = createWidgetConnection(roomId, dto.type);
 
     try {
-      return await this.prisma.widget.create({
-        data: {
-          roomId,
-          type: dto.type,
-          name: widgetName,
-        },
+      const widget = await this.prisma.$transaction(async (tx) => {
+        const createdWidget = await tx.widget.create({
+          data: widgetConnection,
+        });
+
+        if (!dto.payload) {
+          return createdWidget;
+        }
+
+        await applyWidgetTypePayload(
+          tx,
+          dto.type,
+          createdWidget.id,
+          dto.payload as WidgetCreatePayloadMap[typeof dto.type],
+        );
+
+        return createdWidget;
       });
+
+      return widget;
     } catch (error: unknown) {
       const prismaError = error as { code?: string };
 
@@ -251,15 +275,7 @@ export class RoomsService {
   }
 
   private getWidgetDisplayName(type: string) {
-    const displayNames: Record<string, string> = {
-      chat: 'Chat',
-      notes: 'Notes',
-      tasks: 'Tasks',
-      map: 'Map',
-      expenses: 'Expenses',
-    };
-
-    return displayNames[type] ?? type;
+    return getWidgetTypeMeta(type).displayName;
   }
 
   async transferOwnership(
@@ -291,5 +307,59 @@ export class RoomsService {
 
       return { roomId, newOwnerId: targetUserId };
     });
+  }
+  async deleteRoom(roomId: string) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    await this.prisma.room.delete({ where: { id: roomId } });
+
+    return { roomId, deleted: true };
+  }
+
+  async removeMember(
+    roomId: string,
+    currentOwnerId: string,
+    targetUserId: string,
+  ): Promise<RemoveMemberResponseDto> {
+    if (targetUserId === currentOwnerId) {
+      throw new BadRequestException(ERROR_MESSAGES.CANNOT_REMOVE_SELF);
+    }
+
+    const targetMembership = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId: targetUserId, leftAt: null },
+    });
+    if (!targetMembership) {
+      throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
+    }
+    if (targetMembership.role === RoomRole.OWNER) {
+      throw new ConflictException(ERROR_MESSAGES.CANNOT_REMOVE_OWNER);
+    }
+    await this.prisma.roomMember.update({
+      where: { id: targetMembership.id },
+      data: { leftAt: new Date() },
+    });
+
+    return { roomId, removedUserId: targetUserId };
+  }
+
+  async leaveRoom(roomId: string, userId: string) {
+    const membership = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId, leftAt: null },
+    });
+    if (!membership) {
+      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
+    }
+    if (membership.role === RoomRole.OWNER) {
+      throw new ConflictException(ERROR_MESSAGES.OWNER_MUST_TRANSFER_OWNERSHIP);
+    }
+    await this.prisma.roomMember.update({
+      where: { id: membership.id },
+      data: { leftAt: new Date() },
+    });
+    return { roomId, leftUserId: userId };
   }
 }

@@ -1,11 +1,96 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  createWidgetConnection,
+  createWidgetModuleBinding,
+  getWidgetTypeMeta,
+} from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
 
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
+
+type TransactionResult = {
+  id?: string;
+  roomId?: string;
+  userId?: string;
+  role?: string;
+  name?: string;
+  inviteCode?: string;
+  createdAt?: Date;
+  joinedAt?: Date | null;
+  leftAt?: Date | null;
+};
+
+type TransactionClient = {
+  room: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    delete: jest.Mock;
+    update: jest.Mock;
+  };
+  roomMember: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    findFirst: jest.Mock;
+    update: jest.Mock;
+    count: jest.Mock;
+  };
+  widget: {
+    create: jest.Mock;
+  };
+  task?: {
+    create: jest.Mock;
+  };
+  note?: {
+    create: jest.Mock;
+  };
+  chatMessage?: {
+    create: jest.Mock;
+  };
+  mapPoint?: {
+    create: jest.Mock;
+  };
+  expense?: {
+    create: jest.Mock;
+  };
+};
+
+describe('widget factory', () => {
+  it('creates a widget connection payload from a room and type', () => {
+    expect(createWidgetConnection('room-1', 'tasks')).toEqual({
+      roomId: 'room-1',
+      type: 'tasks',
+      name: 'Tasks',
+    });
+  });
+
+  it('returns metadata for supported widget types', () => {
+    expect(getWidgetTypeMeta('expenses')).toEqual({
+      type: 'expenses',
+      displayName: 'Expenses',
+    });
+  });
+
+  it('creates a module binding payload for a widget type', () => {
+    expect(
+      createWidgetModuleBinding('widget-1', 'tasks', {
+        title: 'Buy tickets',
+        createdById: 'member-1',
+      }),
+    ).toEqual({
+      widgetId: 'widget-1',
+      type: 'tasks',
+      payload: {
+        title: 'Buy tickets',
+        createdById: 'member-1',
+      },
+    });
+  });
+});
 
 describe('RoomsService', () => {
   let service: RoomsService;
@@ -15,28 +100,52 @@ describe('RoomsService', () => {
     inviteCode: 'ABC123',
     createdAt: new Date(),
   };
-  const transaction = {
-    room: { create: jest.fn().mockResolvedValue(room), findUnique: jest.fn() },
+  const transaction: TransactionClient = {
+    room: {
+      create: jest.fn().mockResolvedValue(room),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+      update: jest.fn(),
+    },
     roomMember: {
       create: jest.fn().mockResolvedValue({}),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
+    widget: { create: jest.fn() },
+    task: { create: jest.fn() },
+    note: { create: jest.fn() },
+    chatMessage: { create: jest.fn() },
+    mapPoint: { create: jest.fn() },
+    expense: { create: jest.fn() },
   };
   const prisma: {
     $transaction: (
-      callback: (client: typeof transaction) => Promise<unknown>,
-    ) => Promise<unknown>;
-    room: { findUnique: jest.Mock; update: jest.Mock };
-    roomMember: { findMany: jest.Mock; findFirst: jest.Mock };
+      callback: (client: TransactionClient) => Promise<TransactionResult>,
+    ) => Promise<TransactionResult>;
+    room: {
+      findUnique: jest.Mock;
+      update: jest.Mock;
+      delete: jest.Mock;
+    };
+    roomMember: {
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
     widget: { create: jest.Mock };
   } = {
     $transaction: async (
-      callback: (client: typeof transaction) => Promise<unknown>,
-    ): Promise<unknown> => callback(transaction),
-    room: { findUnique: jest.fn(), update: jest.fn() },
-    roomMember: { findMany: jest.fn(), findFirst: jest.fn() },
+      callback: (client: TransactionClient) => Promise<TransactionResult>,
+    ): Promise<TransactionResult> => callback(transaction),
+    room: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    roomMember: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
     widget: { create: jest.fn() },
   };
 
@@ -175,6 +284,18 @@ describe('RoomsService', () => {
     });
   });
 
+  it('returns the current room when there is nothing to update', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+
+    await expect(
+      service.updateRoom('room-1', {
+        name: undefined,
+        regenerateInviteCode: false,
+      }),
+    ).resolves.toEqual(room);
+    expect(prisma.room.update).not.toHaveBeenCalled();
+  });
+
   it('updates the room name for the owner', async () => {
     prisma.room.findUnique.mockResolvedValue(room);
     prisma.room.update.mockResolvedValue({
@@ -229,7 +350,7 @@ describe('RoomsService', () => {
 
   it('connects a widget to the room', async () => {
     prisma.room.findUnique.mockResolvedValue(room);
-    prisma.widget.create.mockResolvedValue({
+    transaction.widget.create.mockResolvedValue({
       id: 'widget-1',
       roomId: 'room-1',
       type: 'chat',
@@ -245,7 +366,7 @@ describe('RoomsService', () => {
       name: 'Chat',
     });
 
-    expect(prisma.widget.create).toHaveBeenCalledWith({
+    expect(transaction.widget.create).toHaveBeenCalledWith({
       data: {
         roomId: 'room-1',
         type: 'chat',
@@ -254,9 +375,51 @@ describe('RoomsService', () => {
     });
   });
 
+  it('creates a widget and typed module payload in one call when payload is provided', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+    transaction.widget.create.mockResolvedValue({
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'tasks',
+      name: 'Tasks',
+    });
+    transaction.task!.create.mockResolvedValue({
+      id: 'task-1',
+      widgetId: 'widget-1',
+      title: 'Prepare itinerary',
+    });
+
+    await expect(
+      service.connectWidget('room-1', {
+        type: 'tasks',
+        payload: {
+          createdById: 'member-1',
+          assignedToId: 'member-2',
+          title: 'Prepare itinerary',
+          description: 'Draft the trip plan',
+        },
+      }),
+    ).resolves.toEqual({
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'tasks',
+      name: 'Tasks',
+    });
+
+    expect(transaction.task!.create).toHaveBeenCalledWith({
+      data: {
+        widgetId: 'widget-1',
+        createdById: 'member-1',
+        assignedToId: 'member-2',
+        title: 'Prepare itinerary',
+        description: 'Draft the trip plan',
+      },
+    });
+  });
+
   it('throws a conflict when a widget type is already connected to the room', async () => {
     prisma.room.findUnique.mockResolvedValue(room);
-    prisma.widget.create.mockRejectedValue({
+    transaction.widget.create.mockRejectedValue({
       code: 'P2002',
       message: 'Unique constraint failed',
     });
@@ -294,5 +457,65 @@ describe('RoomsService', () => {
     await expect(
       service.transferOwnership('room-1', 'owner-1', 'user-2'),
     ).rejects.toThrow(ConflictException);
+  });
+
+  describe('deleteRoom', () => {
+    it('deletes the room when it exists', async () => {
+      prisma.room.findUnique.mockResolvedValue(room);
+
+      await expect(service.deleteRoom('room-1')).resolves.toEqual({
+        roomId: 'room-1',
+        deleted: true,
+      });
+      expect(prisma.room.delete).toHaveBeenCalledWith({
+        where: { id: 'room-1' },
+      });
+    });
+
+    it('throws when the room does not exist', async () => {
+      prisma.room.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteRoom('room-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.room.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('leaveRoom', () => {
+    it('marks a regular member as departed', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue({
+        id: 'member-1',
+        role: RoomRole.MEMBER,
+      });
+
+      await expect(service.leaveRoom('room-1', 'user-1')).resolves.toEqual({
+        roomId: 'room-1',
+        leftUserId: 'user-1',
+      });
+      expect(prisma.roomMember.update).toHaveBeenCalledWith({
+        where: { id: 'member-1' },
+        data: { leftAt: expect.any(Date) as Date },
+      });
+    });
+
+    it('requires an owner to transfer ownership before leaving', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue({
+        id: 'owner-membership',
+        role: RoomRole.OWNER,
+      });
+
+      await expect(service.leaveRoom('room-1', 'owner-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('throws when the user is not an active room member', async () => {
+      prisma.roomMember.findFirst.mockResolvedValue(null);
+
+      await expect(service.leaveRoom('room-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });

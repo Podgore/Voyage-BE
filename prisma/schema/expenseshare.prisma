@@ -6,8 +6,9 @@ model ExpenseShare {
   isPaid       Boolean  @default(false) @map("is_paid")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  expense    Expense    @relation(fields: [expenseId], references: [id])
-  roomMember RoomMember @relation(fields: [roomMemberId], references: [id])
+  expense    Expense    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  roomMember RoomMember @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
 
+  @@index([expenseId])
   @@map("expense_shares")
 }

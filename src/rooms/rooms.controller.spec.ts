@@ -18,6 +18,9 @@ describe('RoomsController', () => {
     updateRoom: jest.fn(),
     connectWidget: jest.fn(),
     transferOwnership: jest.fn(),
+    deleteRoom: jest.fn(),
+    removeMember: jest.fn(),
+    leaveRoom: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -56,8 +59,8 @@ describe('RoomsController', () => {
     await expect(
       controller.findAll(
         {
-          user: { userId: 'user-1' },
-        },
+          user: { userId: 'user-1', email: 'user1@example.com' },
+        } as never,
         1,
         10,
       ),
@@ -133,13 +136,7 @@ describe('RoomsController', () => {
     roomsService.connectWidget.mockResolvedValue(result);
 
     await expect(
-      controller.connectWidget(
-        'room-1',
-        { type: 'chat' },
-        {
-          user: { userId: 'user-1' },
-        },
-      ),
+      controller.connectWidget('room-1', { type: 'chat' }),
     ).resolves.toBe(result);
 
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {
@@ -156,5 +153,34 @@ describe('RoomsController', () => {
         user: { userId: 'user-1' },
       } as never),
     ).resolves.toBe(result);
+  });
+
+  it('deletes the room for the authenticated owner', async () => {
+    const result = { roomId: 'room-1', deleted: true };
+    roomsService.deleteRoom.mockResolvedValue(result);
+
+    await expect(controller.deleteRoom('room-1')).resolves.toBe(result);
+    expect(roomsService.deleteRoom).toHaveBeenCalledWith('room-1');
+  });
+
+  it('removes a member for the authenticated owner', async () => {
+    const result = { roomId: 'room-1', removedUserId: 'user-2' };
+    roomsService.removeMember.mockResolvedValue(result);
+
+    await expect(
+      controller.removeMember('room-1', { targetUserId: 'user-2' }, {
+        user: { userId: 'user-1' },
+      } as never),
+    ).resolves.toBe(result);
+  });
+
+  it('lets a member leave a room', async () => {
+    const result = { roomId: 'room-1', leftUserId: 'user-1' };
+    roomsService.leaveRoom.mockResolvedValue(result);
+
+    await expect(
+      controller.leaveRoom('room-1', { user: { userId: 'user-1' } } as never),
+    ).resolves.toBe(result);
+    expect(roomsService.leaveRoom).toHaveBeenCalledWith('room-1', 'user-1');
   });
 });
