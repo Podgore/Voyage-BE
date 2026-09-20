@@ -8,9 +8,10 @@ model Task {
   description  String?
   createdAt    DateTime @default(now()) @map("created_at")
 
-  widget     Widget     @relation(fields: [widgetId], references: [id])
-  createdBy  RoomMember @relation("TaskCreatedBy", fields: [createdById], references: [id])
-  assignedTo RoomMember @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  widget     Widget     @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  createdBy  RoomMember @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo RoomMember @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
 
+  @@index([widgetId])
   @@map("tasks")
 }

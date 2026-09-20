@@ -6,9 +6,10 @@ model Expense {
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
 
-  widget Widget         @relation(fields: [widgetId], references: [id])
-  payer  RoomMember     @relation("ExpensePayer", fields: [payerId], references: [id])
+  widget Widget         @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  payer  RoomMember     @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
   shares ExpenseShare[]
 
+  @@index([widgetId])
   @@map("expenses")
 }

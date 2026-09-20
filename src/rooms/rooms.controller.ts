@@ -7,8 +7,8 @@ import {
   Param,
   ParseBoolPipe,
   ParseIntPipe,
-  Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -22,6 +22,7 @@ import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { DisconnectWidgetDto } from './dto/disconnect-widget.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { RemoveMemberDto } from './dto/remove-member.dto';
 import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -81,7 +82,7 @@ export class RoomsController {
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
-  @Patch(':roomId')
+  @Put(':roomId')
   updateRoom(@Param('roomId') roomId: string, @Body() dto: UpdateRoomDto) {
     return this.roomsService.updateRoom(roomId, dto);
   }
@@ -117,5 +118,31 @@ export class RoomsController {
       req.user.userId,
       dto.targetUserId,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId')
+  deleteRoom(@Param('roomId') roomId: string) {
+    return this.roomsService.deleteRoom(roomId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Delete(':roomId/remove-member')
+  removeMember(
+    @Param('roomId') roomId: string,
+    @Body() dto: RemoveMemberDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.roomsService.removeMember(
+      roomId,
+      req.user.userId,
+      dto.targetUserId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Post(':roomId/leave')
+  leaveRoom(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+    return this.roomsService.leaveRoom(roomId, req.user.userId);
   }
 }
