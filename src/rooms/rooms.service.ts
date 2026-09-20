@@ -23,6 +23,10 @@ import {
   getWidgetTypeMeta,
 } from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
+import {
+  applyWidgetTypePayload,
+  type WidgetCreatePayloadMap,
+} from './utils/widget-create-dispatcher.util';
 
 @Injectable()
 export class RoomsService {
@@ -206,9 +210,26 @@ export class RoomsService {
     const widgetConnection = createWidgetConnection(roomId, dto.type);
 
     try {
-      return await this.prisma.widget.create({
-        data: widgetConnection,
+      const widget = await this.prisma.$transaction(async (tx) => {
+        const createdWidget = await tx.widget.create({
+          data: widgetConnection,
+        });
+
+        if (!dto.payload) {
+          return createdWidget;
+        }
+
+        await applyWidgetTypePayload(
+          tx,
+          dto.type,
+          createdWidget.id,
+          dto.payload as WidgetCreatePayloadMap[typeof dto.type],
+        );
+
+        return createdWidget;
       });
+
+      return widget;
     } catch (error: unknown) {
       const prismaError = error as { code?: string };
 

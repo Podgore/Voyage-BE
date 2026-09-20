@@ -1,11 +1,16 @@
 model Widget {
-  id       String  @id @default(uuid())
-  roomId   String  @map("room_id")
+  id       String @id @default(uuid())
+  roomId   String @map("room_id")
   type     String
   name     String
   settings Json?
 
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room         Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+  notes        Note[]
+  chatMessages ChatMessage[]
+  mapPoints    MapPoint[]
+  expenses     Expense[]
 
   @@unique([roomId, type])
   @@index([roomId])

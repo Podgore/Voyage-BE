@@ -4,6 +4,7 @@ import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   createWidgetConnection,
+  createWidgetModuleBinding,
   getWidgetTypeMeta,
 } from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
@@ -38,6 +39,24 @@ type TransactionClient = {
     update: jest.Mock;
     count: jest.Mock;
   };
+  widget: {
+    create: jest.Mock;
+  };
+  task?: {
+    create: jest.Mock;
+  };
+  note?: {
+    create: jest.Mock;
+  };
+  chatMessage?: {
+    create: jest.Mock;
+  };
+  mapPoint?: {
+    create: jest.Mock;
+  };
+  expense?: {
+    create: jest.Mock;
+  };
 };
 
 describe('widget factory', () => {
@@ -53,6 +72,22 @@ describe('widget factory', () => {
     expect(getWidgetTypeMeta('expenses')).toEqual({
       type: 'expenses',
       displayName: 'Expenses',
+    });
+  });
+
+  it('creates a module binding payload for a widget type', () => {
+    expect(
+      createWidgetModuleBinding('widget-1', 'tasks', {
+        title: 'Buy tickets',
+        createdById: 'member-1',
+      }),
+    ).toEqual({
+      widgetId: 'widget-1',
+      type: 'tasks',
+      payload: {
+        title: 'Buy tickets',
+        createdById: 'member-1',
+      },
     });
   });
 });
@@ -79,6 +114,12 @@ describe('RoomsService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
+    widget: { create: jest.fn() },
+    task: { create: jest.fn() },
+    note: { create: jest.fn() },
+    chatMessage: { create: jest.fn() },
+    mapPoint: { create: jest.fn() },
+    expense: { create: jest.fn() },
   };
   const prisma: {
     $transaction: (
@@ -286,7 +327,7 @@ describe('RoomsService', () => {
 
   it('connects a widget to the room', async () => {
     prisma.room.findUnique.mockResolvedValue(room);
-    prisma.widget.create.mockResolvedValue({
+    transaction.widget.create.mockResolvedValue({
       id: 'widget-1',
       roomId: 'room-1',
       type: 'chat',
@@ -302,7 +343,7 @@ describe('RoomsService', () => {
       name: 'Chat',
     });
 
-    expect(prisma.widget.create).toHaveBeenCalledWith({
+    expect(transaction.widget.create).toHaveBeenCalledWith({
       data: {
         roomId: 'room-1',
         type: 'chat',
@@ -311,9 +352,51 @@ describe('RoomsService', () => {
     });
   });
 
+  it('creates a widget and typed module payload in one call when payload is provided', async () => {
+    prisma.room.findUnique.mockResolvedValue(room);
+    transaction.widget.create.mockResolvedValue({
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'tasks',
+      name: 'Tasks',
+    });
+    transaction.task!.create.mockResolvedValue({
+      id: 'task-1',
+      widgetId: 'widget-1',
+      title: 'Prepare itinerary',
+    });
+
+    await expect(
+      service.connectWidget('room-1', {
+        type: 'tasks',
+        payload: {
+          createdById: 'member-1',
+          assignedToId: 'member-2',
+          title: 'Prepare itinerary',
+          description: 'Draft the trip plan',
+        },
+      }),
+    ).resolves.toEqual({
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'tasks',
+      name: 'Tasks',
+    });
+
+    expect(transaction.task!.create).toHaveBeenCalledWith({
+      data: {
+        widgetId: 'widget-1',
+        createdById: 'member-1',
+        assignedToId: 'member-2',
+        title: 'Prepare itinerary',
+        description: 'Draft the trip plan',
+      },
+    });
+  });
+
   it('throws a conflict when a widget type is already connected to the room', async () => {
     prisma.room.findUnique.mockResolvedValue(room);
-    prisma.widget.create.mockRejectedValue({
+    transaction.widget.create.mockRejectedValue({
       code: 'P2002',
       message: 'Unique constraint failed',
     });

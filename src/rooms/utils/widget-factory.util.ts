@@ -42,3 +42,25 @@ export function createWidgetConnection(roomId: string, type: string) {
     name: meta.displayName,
   };
 }
+
+export type WidgetModuleBinding<TPayload extends Record<string, unknown>> = {
+  widgetId: string;
+  type: string;
+  payload: TPayload;
+};
+
+export function createWidgetModuleBinding<
+  TPayload extends Record<string, unknown>,
+>(
+  widgetId: string,
+  type: string,
+  payload: TPayload,
+): WidgetModuleBinding<TPayload> {
+  const meta = getWidgetTypeMeta(type);
+
+  return {
+    widgetId,
+    type: meta.type,
+    payload,
+  };
+}
