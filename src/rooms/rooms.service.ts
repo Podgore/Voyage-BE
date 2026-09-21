@@ -8,6 +8,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { RoomRole } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
+import { UpdateRoomData } from '../common/types/update-room-data.type';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -18,7 +19,7 @@ import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
-import { UpdateRoomDto } from './dto/update-room.dto';
+import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
 import {
   createWidgetConnection,
   getWidgetTypeMeta,
@@ -195,7 +196,10 @@ export class RoomsService {
     };
   }
 
-  async updateRoom(roomId: string, dto: UpdateRoomDto) {
+  async updateRoom(
+    roomId: string,
+    data: UpdateRoomData,
+  ): Promise<UpdateRoomResponseDto> {
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
     });
@@ -206,22 +210,25 @@ export class RoomsService {
 
     const updateData: Prisma.RoomUpdateInput = {};
 
-    if (dto.name !== undefined && dto.name !== null) {
-      updateData.name = dto.name;
+    if (data.name !== undefined) {
+      updateData.name = data.name;
     }
 
-    if (dto.regenerateInviteCode === true) {
+    if (data.regenerateInviteCode === true) {
       updateData.inviteCode = generateInviteCode();
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return room;
-    }
-
-    return this.prisma.room.update({
+    const updatedRoom = await this.prisma.room.update({
       where: { id: roomId },
       data: updateData,
     });
+
+    return {
+      id: updatedRoom.id,
+      name: updatedRoom.name,
+      inviteCode: updatedRoom.inviteCode,
+      createdAt: updatedRoom.createdAt,
+    };
   }
 
   async connectWidget(roomId: string, dto: ConnectWidgetDto) {

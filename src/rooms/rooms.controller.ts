@@ -25,6 +25,7 @@ import { RemoveMemberDto } from './dto/remove-member.dto';
 import { RoomWidgetDto } from './dto/room-widget-response.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
 import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
@@ -82,8 +83,14 @@ export class RoomsController {
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
   @Put(':roomId')
-  updateRoom(@Param('roomId') roomId: string, @Body() dto: UpdateRoomDto) {
-    return this.roomsService.updateRoom(roomId, dto);
+  updateRoom(
+    @Param('roomId') roomId: string,
+    @Body() request: UpdateRoomDto,
+  ): Promise<UpdateRoomResponseDto> {
+    return this.roomsService.updateRoom(roomId, {
+      name: request.name,
+      regenerateInviteCode: request.regenerateInviteCode,
+    });
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
