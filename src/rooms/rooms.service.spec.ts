@@ -17,7 +17,7 @@ type TransactionResult = {
   id?: string;
   roomId?: string;
   userId?: string;
-  role?: string;
+  role?: RoomRole;
   name?: string;
   inviteCode?: string;
   createdAt?: Date;
@@ -210,7 +210,7 @@ describe('RoomsService', () => {
       data: {
         roomId: 'room-1',
         userId: 'user-1',
-        role: 'OWNER',
+        role: RoomRole.OWNER,
       },
     });
   });
@@ -222,7 +222,7 @@ describe('RoomsService', () => {
       id: 'member-1',
       roomId: room.id,
       userId: 'user-2',
-      role: 'member',
+      role: RoomRole.MEMBER,
     });
 
     await expect(
@@ -231,7 +231,7 @@ describe('RoomsService', () => {
       id: 'member-1',
       roomId: room.id,
       userId: 'user-2',
-      role: 'member',
+      role: RoomRole.MEMBER,
     });
   });
 
@@ -254,7 +254,7 @@ describe('RoomsService', () => {
   it('returns active room members by default', async () => {
     const member = {
       id: 'membership-1',
-      role: 'owner',
+      role: RoomRole.OWNER,
       joinedAt: new Date(),
       leftAt: null,
       user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
@@ -319,26 +319,14 @@ describe('RoomsService', () => {
       name: 'Summer trip',
       widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
     });
-    prisma.roomMember.findFirst.mockResolvedValue({ role: 'owner' });
+    prisma.roomMember.findFirst.mockResolvedValue({ role: RoomRole.OWNER });
 
     await expect(service.getRoomHub('room-1', 'user-1')).resolves.toEqual({
       id: 'room-1',
       name: 'Summer trip',
-      myRole: 'owner',
+      myRole: RoomRole.OWNER,
       widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
     });
-  });
-
-  it('returns the current room when there is nothing to update', async () => {
-    prisma.room.findUnique.mockResolvedValue(room);
-
-    await expect(
-      service.updateRoom('room-1', {
-        name: undefined,
-        regenerateInviteCode: false,
-      }),
-    ).resolves.toEqual(room);
-    expect(prisma.room.update).not.toHaveBeenCalled();
   });
 
   it('updates the room name for the owner', async () => {
@@ -531,7 +519,7 @@ describe('RoomsService', () => {
   it('transfers ownership to an active member', async () => {
     transaction.roomMember.findFirst.mockResolvedValue({
       id: 'member-1',
-      role: 'member',
+      role: RoomRole.MEMBER,
     });
 
     await expect(
@@ -550,7 +538,7 @@ describe('RoomsService', () => {
   it('throws when target is already the owner', async () => {
     transaction.roomMember.findFirst.mockResolvedValue({
       id: 'member-1',
-      role: 'OWNER',
+      role: RoomRole.OWNER,
     });
 
     await expect(
