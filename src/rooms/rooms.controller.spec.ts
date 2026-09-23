@@ -128,7 +128,7 @@ describe('RoomsController', () => {
     roomsService.connectWidget.mockResolvedValue(result);
 
     await expect(
-      controller.connectWidget({ roomId: 'room-1' }, { type: WidgetType.CHAT }),
+      controller.connectWidget('room-1', { type: WidgetType.CHAT }),
     ).resolves.toBe(result);
 
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {

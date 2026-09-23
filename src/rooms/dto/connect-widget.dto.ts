@@ -2,7 +2,6 @@ import {
   IsEnum,
   IsNotEmpty,
   IsObject,
-  IsOptional,
   IsString,
   Validate,
 } from 'class-validator';
@@ -18,7 +17,6 @@ export class ConnectWidgetDto {
   @IsEnum(WidgetType)
   type!: WidgetType;
 
-  @IsOptional()
   @IsObject()
   @Type(() => WidgetPayloadDto)
   @Validate(WidgetPayloadConstraint)

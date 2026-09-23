@@ -6,7 +6,6 @@ import { WidgetType } from './enums/widget-type.enum';
 import {
   createWidgetConnection,
   createWidgetModuleBinding,
-  getWidgetTypeMeta,
 } from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
 
@@ -66,13 +65,6 @@ describe('widget factory', () => {
       roomId: 'room-1',
       type: 'tasks',
       name: 'Tasks',
-    });
-  });
-
-  it('returns metadata for supported widget types', () => {
-    expect(getWidgetTypeMeta(WidgetType.EXPENSES)).toEqual({
-      type: 'expenses',
-      displayName: 'Expenses',
     });
   });
 

@@ -13,12 +13,8 @@ export const WIDGET_TYPE_META: Record<WidgetType, WidgetTypeMeta> = {
   },
 };
 
-export function getWidgetTypeMeta(type: WidgetType): WidgetTypeMeta {
-  return WIDGET_TYPE_META[type];
-}
-
 export function createWidgetConnection(roomId: string, type: WidgetType) {
-  const meta = getWidgetTypeMeta(type);
+  const meta = WIDGET_TYPE_META[type];
 
   return {
     roomId,
@@ -34,7 +30,7 @@ export function createWidgetModuleBinding<
   type: WidgetType,
   payload: TPayload,
 ): WidgetModuleBinding<TPayload> {
-  const meta = getWidgetTypeMeta(type);
+  const meta = WIDGET_TYPE_META[type];
 
   return {
     widgetId,

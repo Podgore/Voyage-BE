@@ -7,81 +7,43 @@ type WidgetCreateHandlersMap = {
   [K in WidgetType]: WidgetCreateHandler<K>;
 };
 
-const createTaskPayload: WidgetCreateHandler<WidgetType.TASKS> = async (
-  tx,
-  widgetId,
-  payload,
-) => {
-  await tx.task.create({
-    data: {
-      widgetId,
-      createdById: payload.createdById,
-      assignedToId: payload.assignedToId,
-      title: payload.title,
-      description: payload.description,
-    },
-  });
-};
+type WidgetPayloadWithId<TType extends WidgetType> =
+  WidgetCreatePayloadMap[TType] & { widgetId: string };
 
-const createNotePayload: WidgetCreateHandler<WidgetType.NOTES> = async (
-  tx,
-  widgetId,
-  payload,
-) => {
-  await tx.note.create({
-    data: {
-      widgetId,
-      roomMemberId: payload.roomMemberId,
-      text: payload.text,
-    },
-  });
-};
+type WidgetRecordCreator<TType extends WidgetType, TResult> = (
+  transaction: Prisma.TransactionClient,
+  data: WidgetPayloadWithId<TType>,
+) => Promise<TResult>;
 
-const createChatPayload: WidgetCreateHandler<WidgetType.CHAT> = async (
-  tx,
-  widgetId,
-  payload,
-) => {
-  await tx.chatMessage.create({
-    data: {
-      widgetId,
-      roomMemberId: payload.roomMemberId,
-      text: payload.text,
-    },
-  });
-};
+function createWidgetHandler<TType extends WidgetType>() {
+  return <TResult>(
+    createRecord: WidgetRecordCreator<TType, TResult>,
+  ): WidgetCreateHandler<TType> => {
+    return async (transaction, widgetId, payload) => {
+      await createRecord(transaction, { widgetId, ...payload });
+    };
+  };
+}
 
-const createMapPayload: WidgetCreateHandler<WidgetType.MAP> = async (
-  tx,
-  widgetId,
-  payload,
-) => {
-  await tx.mapPoint.create({
-    data: {
-      widgetId,
-      roomMemberId: payload.roomMemberId,
-      lat: payload.lat,
-      lng: payload.lng,
-      title: payload.title,
-      description: payload.description,
-    },
-  });
-};
+const createTaskPayload = createWidgetHandler<WidgetType.TASKS>()(
+  (transaction, data) => transaction.task.create({ data }),
+);
 
-const createExpensePayload: WidgetCreateHandler<WidgetType.EXPENSES> = async (
-  tx,
-  widgetId,
-  payload,
-) => {
-  await tx.expense.create({
-    data: {
-      widgetId,
-      payerId: payload.payerId,
-      amount: payload.amount,
-      description: payload.description,
-    },
-  });
-};
+const createNotePayload = createWidgetHandler<WidgetType.NOTES>()(
+  (transaction, data) => transaction.note.create({ data }),
+);
+
+const createChatPayload = createWidgetHandler<WidgetType.CHAT>()(
+  (transaction, data) => transaction.chatMessage.create({ data }),
+);
+
+const createMapPayload = createWidgetHandler<WidgetType.MAP>()(
+  (transaction, data) => transaction.mapPoint.create({ data }),
+);
+
+const createExpensePayload = createWidgetHandler<WidgetType.EXPENSES>()(
+  (transaction, data) => transaction.expense.create({ data }),
+);
 
 export const WIDGET_CREATE_HANDLERS: WidgetCreateHandlersMap = {
   [WidgetType.TASKS]: createTaskPayload,
@@ -92,11 +54,11 @@ export const WIDGET_CREATE_HANDLERS: WidgetCreateHandlersMap = {
 };
 
 export async function applyWidgetTypePayload<K extends WidgetType>(
-  tx: Prisma.TransactionClient,
+  transaction: Prisma.TransactionClient,
   type: K,
   widgetId: string,
   payload: WidgetCreatePayloadMap[K],
 ): Promise<void> {
   const handler = WIDGET_CREATE_HANDLERS[type];
-  await handler(tx, widgetId, payload);
+  await handler(transaction, widgetId, payload);
 }
