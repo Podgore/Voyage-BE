@@ -19,6 +19,7 @@ describe('RoomsController', () => {
     findWidgets: jest.fn(),
     updateRoom: jest.fn(),
     connectWidget: jest.fn(),
+    disconnectWidget: jest.fn(),
     transferOwnership: jest.fn(),
     deleteRoom: jest.fn(),
     removeMember: jest.fn(),
@@ -143,6 +144,20 @@ describe('RoomsController', () => {
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {
       type: 'chat',
     });
+  });
+
+  it('disconnects a widget for the authenticated owner', async () => {
+    const result = { widgetId: 'widget-1', deleted: true };
+    roomsService.disconnectWidget.mockResolvedValue(result);
+
+    await expect(
+      controller.disconnectWidget('room-1', 'widget-1'),
+    ).resolves.toBe(result);
+
+    expect(roomsService.disconnectWidget).toHaveBeenCalledWith(
+      'room-1',
+      'widget-1',
+    );
   });
 
   it('transfers ownership for the authenticated owner', async () => {
