@@ -235,6 +235,35 @@ describe('RoomsService', () => {
     });
   });
 
+  it('returns only connected widget fields for a room', async () => {
+    prisma.room.findUnique.mockResolvedValue({
+      id: 'room-1',
+      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+    });
+
+    await expect(service.findWidgets('room-1')).resolves.toEqual([
+      { id: 'widget-1', type: 'chat', name: 'Chat' },
+    ]);
+
+    expect(prisma.room.findUnique).toHaveBeenCalledWith({
+      where: { id: 'room-1' },
+      select: {
+        id: true,
+        widgets: {
+          select: { id: true, type: true, name: true },
+        },
+      },
+    });
+  });
+
+  it('throws when listing widgets for a missing room', async () => {
+    prisma.room.findUnique.mockResolvedValue(null);
+
+    await expect(service.findWidgets('missing-room')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
   it('updates the room name for the owner', async () => {
     prisma.room.findUnique.mockResolvedValue(room);
     prisma.room.update.mockResolvedValue({

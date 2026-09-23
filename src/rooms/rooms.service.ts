@@ -20,6 +20,7 @@ import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
+import { WidgetResponseDto } from './dto/widget-response.dto';
 import { createWidgetConnection } from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
 
@@ -162,6 +163,24 @@ export class RoomsService {
         name: widget.name,
       })),
     };
+  }
+
+  async findWidgets(roomId: string): Promise<WidgetResponseDto[]> {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: {
+        id: true,
+        widgets: {
+          select: { id: true, type: true, name: true },
+        },
+      },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    return room.widgets;
   }
 
   async updateRoom(
