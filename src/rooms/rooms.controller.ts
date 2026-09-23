@@ -23,6 +23,7 @@ import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
+import { RoomIdParamsDto } from './dto/room-id-params.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
@@ -90,10 +91,10 @@ export class RoomsController {
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
   @Post(':roomId/widgets')
   connectWidget(
-    @Param('roomId') roomId: string,
+    @Param() params: RoomIdParamsDto,
     @Body() dto: ConnectWidgetDto,
   ): Promise<ConnectWidgetResponseDto> {
-    return this.roomsService.connectWidget(roomId, dto);
+    return this.roomsService.connectWidget(params.roomId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)

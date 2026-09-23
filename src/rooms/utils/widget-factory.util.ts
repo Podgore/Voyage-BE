@@ -1,9 +1,6 @@
 import { WidgetType } from '../enums/widget-type.enum';
-
-type WidgetTypeMeta = {
-  type: WidgetType;
-  displayName: string;
-};
+import type { WidgetModuleBinding } from '../types/widget-module-binding.type';
+import type { WidgetTypeMeta } from '../types/widget-type-meta.type';
 
 export const WIDGET_TYPE_META: Record<WidgetType, WidgetTypeMeta> = {
   [WidgetType.CHAT]: { type: WidgetType.CHAT, displayName: 'Chat' },
@@ -29,12 +26,6 @@ export function createWidgetConnection(roomId: string, type: WidgetType) {
     name: meta.displayName,
   };
 }
-
-type WidgetModuleBinding<TPayload extends Record<string, unknown>> = {
-  widgetId: string;
-  type: WidgetType;
-  payload: TPayload;
-};
 
 export function createWidgetModuleBinding<
   TPayload extends Record<string, unknown>,
