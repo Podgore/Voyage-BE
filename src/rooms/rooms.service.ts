@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { DisconnectWidgetResponseDto } from './dto/disconnect-widget-response.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
 import { RoomHubDto } from './dto/room-hub-response.dto';
@@ -263,6 +264,42 @@ export class RoomsService {
 
       throw error;
     }
+  }
+
+  async disconnectWidget(
+    roomId: string,
+    widgetId: string,
+  ): Promise<DisconnectWidgetResponseDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const widget = await tx.widget.findFirst({
+        where: { id: widgetId, roomId },
+        select: { id: true, type: true },
+      });
+
+      if (!widget) {
+        throw new NotFoundException(ERROR_MESSAGES.WIDGET_NOT_FOUND);
+      }
+
+      if (widget.type === 'expenses') {
+        const unpaidShare = await tx.expenseShare.findFirst({
+          where: {
+            isPaid: false,
+            expense: { widgetId },
+          },
+          select: { id: true },
+        });
+
+        if (unpaidShare) {
+          throw new ConflictException(
+            ERROR_MESSAGES.WIDGET_HAS_UNPAID_EXPENSE_SHARES,
+          );
+        }
+      }
+
+      await tx.widget.delete({ where: { id: widgetId } });
+
+      return { widgetId, deleted: true };
+    });
   }
 
   async transferOwnership(

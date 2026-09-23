@@ -38,6 +38,11 @@ type TransactionClient = {
   };
   widget: {
     create: jest.Mock;
+    findFirst: jest.Mock;
+    delete: jest.Mock;
+  };
+  expenseShare: {
+    findFirst: jest.Mock;
   };
   task?: {
     create: jest.Mock;
@@ -88,7 +93,8 @@ describe('RoomsService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
-    widget: { create: jest.fn() },
+    widget: { create: jest.fn(), findFirst: jest.fn(), delete: jest.fn() },
+    expenseShare: { findFirst: jest.fn() },
     task: { create: jest.fn() },
     note: { create: jest.fn() },
     chatMessage: { create: jest.fn() },
@@ -353,6 +359,49 @@ describe('RoomsService', () => {
     await expect(
       service.connectWidget('room-1', { type: WidgetType.CHAT }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  describe('disconnectWidget', () => {
+    it('throws when the widget does not belong to the room', async () => {
+      transaction.widget.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.disconnectWidget('room-1', 'missing-widget'),
+      ).rejects.toThrow(NotFoundException);
+      expect(transaction.widget.delete).not.toHaveBeenCalled();
+    });
+
+    it('blocks an expenses widget with an unpaid share', async () => {
+      transaction.widget.findFirst.mockResolvedValue({
+        id: 'widget-1',
+        type: WidgetType.EXPENSES,
+      });
+      transaction.expenseShare.findFirst.mockResolvedValue({ id: 'share-1' });
+
+      await expect(
+        service.disconnectWidget('room-1', 'widget-1'),
+      ).rejects.toThrow(ConflictException);
+      expect(transaction.expenseShare.findFirst).toHaveBeenCalledWith({
+        where: { isPaid: false, expense: { widgetId: 'widget-1' } },
+        select: { id: true },
+      });
+      expect(transaction.widget.delete).not.toHaveBeenCalled();
+    });
+
+    it('deletes a widget after all expense shares are settled', async () => {
+      transaction.widget.findFirst.mockResolvedValue({
+        id: 'widget-1',
+        type: WidgetType.EXPENSES,
+      });
+      transaction.expenseShare.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.disconnectWidget('room-1', 'widget-1'),
+      ).resolves.toEqual({ widgetId: 'widget-1', deleted: true });
+      expect(transaction.widget.delete).toHaveBeenCalledWith({
+        where: { id: 'widget-1' },
+      });
+    });
   });
 
   it('transfers ownership to an active member', async () => {
