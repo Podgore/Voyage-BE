@@ -13,7 +13,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
@@ -23,7 +23,6 @@ import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
-import { RoomIdParamsDto } from './dto/room-id-params.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
@@ -89,12 +88,13 @@ export class RoomsController {
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @ApiParam({ name: 'roomId', type: String, required: true })
   @Post(':roomId/widgets')
   connectWidget(
-    @Param() params: RoomIdParamsDto,
+    @Param('roomId') roomId: string,
     @Body() dto: ConnectWidgetDto,
   ): Promise<ConnectWidgetResponseDto> {
-    return this.roomsService.connectWidget(params.roomId, dto);
+    return this.roomsService.connectWidget(roomId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
