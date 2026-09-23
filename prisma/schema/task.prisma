@@ -3,7 +3,7 @@ model Task {
   widgetId     String   @map("widget_id")
   createdById  String   @map("created_by_id")
   assignedToId String   @map("assigned_to_id")
-  status       String   @default("pending")
+  status       String   @default("todo")
   title        String
   description  String?
   createdAt    DateTime @default(now()) @map("created_at")

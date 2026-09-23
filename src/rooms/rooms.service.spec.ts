@@ -56,7 +56,6 @@ describe('RoomsService', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
-      count: jest.fn(),
     },
   };
   const prisma: {
@@ -324,7 +323,6 @@ describe('RoomsService', () => {
         id: 'owner-membership',
         role: RoomRole.OWNER,
       });
-
       await expect(service.leaveRoom('room-1', 'owner-1')).rejects.toThrow(
         ConflictException,
       );
