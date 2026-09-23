@@ -12,5 +12,6 @@ model Task {
   createdBy  RoomMember @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   assignedTo RoomMember @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
 
+  @@index([widgetId])
   @@map("tasks")
 }

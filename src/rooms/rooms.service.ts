@@ -10,6 +10,8 @@ import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { UpdateRoomData } from '../common/types/update-room-data.type';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConnectWidgetDto } from './dto/connect-widget.dto';
+import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
@@ -18,6 +20,7 @@ import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
+import { createWidgetConnection } from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
 
 @Injectable()
@@ -194,6 +197,53 @@ export class RoomsService {
       inviteCode: updatedRoom.inviteCode,
       createdAt: updatedRoom.createdAt,
     };
+  }
+
+  async connectWidget(
+    roomId: string,
+    dto: ConnectWidgetDto,
+  ): Promise<ConnectWidgetResponseDto> {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    const widgetConnection = createWidgetConnection(roomId, dto.type);
+
+    try {
+      const widget = await this.prisma.$transaction(async (tx) => {
+        const createdWidget = await tx.widget.create({
+          data: widgetConnection,
+        });
+
+        return {
+          id: createdWidget.id,
+          roomId: createdWidget.roomId,
+          type: createdWidget.type,
+          name: createdWidget.name,
+        };
+      });
+
+      return widget;
+    } catch (error: unknown) {
+      if (
+        (error instanceof Prisma.PrismaClientKnownRequestError ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            typeof error.code === 'string')) &&
+        error.code === PrismaErrorCode.UNIQUE_CONSTRAINT.toString()
+      ) {
+        throw new ConflictException(
+          `Widget type ${dto.type} is already connected to this room`,
+        );
+      }
+
+      throw error;
+    }
   }
 
   async transferOwnership(

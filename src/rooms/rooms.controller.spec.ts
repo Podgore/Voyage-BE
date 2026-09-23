@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoomRole } from '../../generated/prisma/enums';
+import { WidgetType } from './enums/widget-type.enum';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
@@ -16,6 +17,7 @@ describe('RoomsController', () => {
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
     updateRoom: jest.fn(),
+    connectWidget: jest.fn(),
     transferOwnership: jest.fn(),
     deleteRoom: jest.fn(),
     removeMember: jest.fn(),
@@ -113,6 +115,24 @@ describe('RoomsController', () => {
 
     expect(roomsService.updateRoom).toHaveBeenCalledWith('room-1', {
       name: 'Updated trip',
+    });
+  });
+
+  it('connects a widget for the authenticated owner', async () => {
+    const result = {
+      id: 'widget-1',
+      roomId: 'room-1',
+      type: 'chat',
+      name: 'Chat',
+    };
+    roomsService.connectWidget.mockResolvedValue(result);
+
+    await expect(
+      controller.connectWidget('room-1', { type: WidgetType.CHAT }),
+    ).resolves.toBe(result);
+
+    expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {
+      type: 'chat',
     });
   });
 
