@@ -8,6 +8,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { RoomRole } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
+import { UpdateRoomData } from '../common/types/update-room-data.type';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
@@ -16,6 +17,7 @@ import { RoomHubDto } from './dto/room-hub-response.dto';
 import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
+import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
 import { generateInviteCode } from './utils/invite-code.util';
 
 @Injectable()
@@ -156,6 +158,41 @@ export class RoomsService {
         type: widget.type,
         name: widget.name,
       })),
+    };
+  }
+
+  async updateRoom(
+    roomId: string,
+    data: UpdateRoomData,
+  ): Promise<UpdateRoomResponseDto> {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      throw new NotFoundException(ERROR_MESSAGES.ROOM_NOT_FOUND);
+    }
+
+    const updateData: Prisma.RoomUpdateInput = {};
+
+    if (data.name !== undefined) {
+      updateData.name = data.name;
+    }
+
+    if (data.regenerateInviteCode === true) {
+      updateData.inviteCode = generateInviteCode();
+    }
+
+    const updatedRoom = await this.prisma.room.update({
+      where: { id: roomId },
+      data: updateData,
+    });
+
+    return {
+      id: updatedRoom.id,
+      name: updatedRoom.name,
+      inviteCode: updatedRoom.inviteCode,
+      createdAt: updatedRoom.createdAt,
     };
   }
 

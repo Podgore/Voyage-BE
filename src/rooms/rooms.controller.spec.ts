@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
@@ -14,6 +15,7 @@ describe('RoomsController', () => {
     findAll: jest.fn(),
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
+    updateRoom: jest.fn(),
     transferOwnership: jest.fn(),
     deleteRoom: jest.fn(),
     removeMember: jest.fn(),
@@ -67,7 +69,7 @@ describe('RoomsController', () => {
   });
 
   it('lists active room members by default', async () => {
-    const members = [{ id: 'membership-1', role: 'owner' }];
+    const members = [{ id: 'membership-1', role: RoomRole.OWNER }];
     roomsService.findMembers.mockResolvedValue(members);
 
     await expect(controller.findMembers('room-1', false)).resolves.toEqual(
@@ -79,8 +81,8 @@ describe('RoomsController', () => {
 
   it('can include departed room members when requested', async () => {
     const members = [
-      { id: 'membership-1', role: 'owner' },
-      { id: 'membership-2', role: 'member' },
+      { id: 'membership-1', role: RoomRole.OWNER },
+      { id: 'membership-2', role: RoomRole.MEMBER },
     ];
     roomsService.findMembers.mockResolvedValue(members);
 
@@ -99,6 +101,19 @@ describe('RoomsController', () => {
       controller.getRoomHub('room-1', { user: { userId: 'user-1' } } as never),
     ).resolves.toBe(roomHub);
     expect(roomsService.getRoomHub).toHaveBeenCalledWith('room-1', 'user-1');
+  });
+
+  it('updates room data for the authenticated owner', async () => {
+    const result = { id: 'room-1', name: 'Updated trip', inviteCode: 'XYZ789' };
+    roomsService.updateRoom.mockResolvedValue(result);
+
+    await expect(
+      controller.updateRoom('room-1', { name: 'Updated trip' }),
+    ).resolves.toBe(result);
+
+    expect(roomsService.updateRoom).toHaveBeenCalledWith('room-1', {
+      name: 'Updated trip',
+    });
   });
 
   it('transfers ownership for the authenticated owner', async () => {

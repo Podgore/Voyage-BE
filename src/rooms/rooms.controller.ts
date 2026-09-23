@@ -8,6 +8,7 @@ import {
   ParseBoolPipe,
   ParseIntPipe,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -21,6 +22,8 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
+import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
 import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
@@ -68,6 +71,18 @@ export class RoomsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.roomsService.getRoomHub(roomId, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @Put(':roomId')
+  updateRoom(
+    @Param('roomId') roomId: string,
+    @Body() request: UpdateRoomDto,
+  ): Promise<UpdateRoomResponseDto> {
+    return this.roomsService.updateRoom(roomId, {
+      name: request.name,
+      regenerateInviteCode: request.regenerateInviteCode,
+    });
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
