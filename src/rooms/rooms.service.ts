@@ -22,7 +22,6 @@ import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
 import { createWidgetConnection } from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
-import { applyWidgetTypePayload } from './utils/widget-create-dispatcher.util';
 
 @Injectable()
 export class RoomsService {
@@ -219,15 +218,6 @@ export class RoomsService {
         const createdWidget = await tx.widget.create({
           data: widgetConnection,
         });
-
-        if (dto.payload) {
-          await applyWidgetTypePayload(
-            tx,
-            dto.type,
-            createdWidget.id,
-            dto.payload,
-          );
-        }
 
         return {
           id: createdWidget.id,

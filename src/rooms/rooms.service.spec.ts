@@ -3,10 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { WidgetType } from './enums/widget-type.enum';
-import {
-  createWidgetConnection,
-  createWidgetModuleBinding,
-} from './utils/widget-factory.util';
+import { createWidgetConnection } from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
 
 jest.mock('../prisma/prisma.service', () => ({
@@ -65,22 +62,6 @@ describe('widget factory', () => {
       roomId: 'room-1',
       type: 'tasks',
       name: 'Tasks',
-    });
-  });
-
-  it('creates a module binding payload for a widget type', () => {
-    expect(
-      createWidgetModuleBinding('widget-1', WidgetType.TASKS, {
-        title: 'Buy tickets',
-        createdById: 'member-1',
-      }),
-    ).toEqual({
-      widgetId: 'widget-1',
-      type: 'tasks',
-      payload: {
-        title: 'Buy tickets',
-        createdById: 'member-1',
-      },
     });
   });
 });
@@ -329,48 +310,6 @@ describe('RoomsService', () => {
         roomId: 'room-1',
         type: 'chat',
         name: 'Chat',
-      },
-    });
-  });
-
-  it('creates a widget and typed module payload in one call when payload is provided', async () => {
-    prisma.room.findUnique.mockResolvedValue(room);
-    transaction.widget.create.mockResolvedValue({
-      id: 'widget-1',
-      roomId: 'room-1',
-      type: 'tasks',
-      name: 'Tasks',
-    });
-    transaction.task!.create.mockResolvedValue({
-      id: 'task-1',
-      widgetId: 'widget-1',
-      title: 'Prepare itinerary',
-    });
-
-    await expect(
-      service.connectWidget('room-1', {
-        type: WidgetType.TASKS,
-        payload: {
-          createdById: 'member-1',
-          assignedToId: 'member-2',
-          title: 'Prepare itinerary',
-          description: 'Draft the trip plan',
-        },
-      }),
-    ).resolves.toEqual({
-      id: 'widget-1',
-      roomId: 'room-1',
-      type: 'tasks',
-      name: 'Tasks',
-    });
-
-    expect(transaction.task!.create).toHaveBeenCalledWith({
-      data: {
-        widgetId: 'widget-1',
-        createdById: 'member-1',
-        assignedToId: 'member-2',
-        title: 'Prepare itinerary',
-        description: 'Draft the trip plan',
       },
     });
   });
