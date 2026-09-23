@@ -19,6 +19,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
+import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
@@ -91,7 +92,7 @@ export class RoomsController {
   connectWidget(
     @Param('roomId') roomId: string,
     @Body() dto: ConnectWidgetDto,
-  ) {
+  ): Promise<ConnectWidgetResponseDto> {
     return this.roomsService.connectWidget(roomId, dto);
   }
 

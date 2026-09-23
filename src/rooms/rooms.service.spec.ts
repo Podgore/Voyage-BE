@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoomRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
+import { WidgetType } from './enums/widget-type.enum';
 import {
   createWidgetConnection,
   createWidgetModuleBinding,
@@ -61,7 +62,7 @@ type TransactionClient = {
 
 describe('widget factory', () => {
   it('creates a widget connection payload from a room and type', () => {
-    expect(createWidgetConnection('room-1', 'tasks')).toEqual({
+    expect(createWidgetConnection('room-1', WidgetType.TASKS)).toEqual({
       roomId: 'room-1',
       type: 'tasks',
       name: 'Tasks',
@@ -69,7 +70,7 @@ describe('widget factory', () => {
   });
 
   it('returns metadata for supported widget types', () => {
-    expect(getWidgetTypeMeta('expenses')).toEqual({
+    expect(getWidgetTypeMeta(WidgetType.EXPENSES)).toEqual({
       type: 'expenses',
       displayName: 'Expenses',
     });
@@ -77,7 +78,7 @@ describe('widget factory', () => {
 
   it('creates a module binding payload for a widget type', () => {
     expect(
-      createWidgetModuleBinding('widget-1', 'tasks', {
+      createWidgetModuleBinding('widget-1', WidgetType.TASKS, {
         title: 'Buy tickets',
         createdById: 'member-1',
       }),
@@ -323,7 +324,7 @@ describe('RoomsService', () => {
     });
 
     await expect(
-      service.connectWidget('room-1', { type: 'chat' }),
+      service.connectWidget('room-1', { type: WidgetType.CHAT }),
     ).resolves.toEqual({
       id: 'widget-1',
       roomId: 'room-1',
@@ -356,7 +357,7 @@ describe('RoomsService', () => {
 
     await expect(
       service.connectWidget('room-1', {
-        type: 'tasks',
+        type: WidgetType.TASKS,
         payload: {
           createdById: 'member-1',
           assignedToId: 'member-2',
@@ -390,7 +391,7 @@ describe('RoomsService', () => {
     });
 
     await expect(
-      service.connectWidget('room-1', { type: 'chat' }),
+      service.connectWidget('room-1', { type: WidgetType.CHAT }),
     ).rejects.toThrow(ConflictException);
   });
 

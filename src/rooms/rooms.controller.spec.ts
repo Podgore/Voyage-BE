@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoomRole } from '../../generated/prisma/enums';
+import { WidgetType } from './enums/widget-type.enum';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
@@ -127,7 +128,7 @@ describe('RoomsController', () => {
     roomsService.connectWidget.mockResolvedValue(result);
 
     await expect(
-      controller.connectWidget('room-1', { type: 'chat' }),
+      controller.connectWidget('room-1', { type: WidgetType.CHAT }),
     ).resolves.toBe(result);
 
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {

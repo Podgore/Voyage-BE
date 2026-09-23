@@ -1,73 +1,17 @@
-import { WidgetType } from './widget-factory.util';
-
-export type WidgetTypePayload = Record<string, unknown>;
-
-export type WidgetCreatePayloadMap = {
-  tasks: {
-    createdById: string;
-    assignedToId: string;
-    title: string;
-    description?: string;
-  };
-  notes: {
-    roomMemberId: string;
-    text: string;
-  };
-  chat: {
-    roomMemberId: string;
-    text: string;
-  };
-  map: {
-    roomMemberId: string;
-    lat: number;
-    lng: number;
-    title: string;
-    description?: string;
-  };
-  expenses: {
-    payerId: string;
-    amount: number;
-    description?: string;
-  };
-};
-
-type TransactionClient = {
-  task?: {
-    create: (args: any) => Promise<unknown>;
-  };
-  note?: {
-    create: (args: any) => Promise<unknown>;
-  };
-  chatMessage?: {
-    create: (args: any) => Promise<unknown>;
-  };
-  mapPoint?: {
-    create: (args: any) => Promise<unknown>;
-  };
-  expense?: {
-    create: (args: any) => Promise<unknown>;
-  };
-};
-
-export type WidgetCreateHandler<TType extends WidgetType = WidgetType> = (
-  tx: TransactionClient,
-  widgetId: string,
-  payload: WidgetCreatePayloadMap[TType],
-) => Promise<void>;
+import { Prisma } from '../../../generated/prisma/client';
+import { WidgetType } from '../enums/widget-type.enum';
+import type { WidgetCreateHandler } from '../types/widget-create-handler.type';
+import type { WidgetCreatePayloadMap } from '../types/widget-create-payload-map.type';
 
 type WidgetCreateHandlersMap = {
   [K in WidgetType]: WidgetCreateHandler<K>;
 };
 
-const createTaskPayload: WidgetCreateHandler<'tasks'> = async (
+const createTaskPayload: WidgetCreateHandler<WidgetType.TASKS> = async (
   tx,
   widgetId,
   payload,
 ) => {
-  if (!tx.task) {
-    return;
-  }
-
   await tx.task.create({
     data: {
       widgetId,
@@ -79,15 +23,11 @@ const createTaskPayload: WidgetCreateHandler<'tasks'> = async (
   });
 };
 
-const createNotePayload: WidgetCreateHandler<'notes'> = async (
+const createNotePayload: WidgetCreateHandler<WidgetType.NOTES> = async (
   tx,
   widgetId,
   payload,
 ) => {
-  if (!tx.note) {
-    return;
-  }
-
   await tx.note.create({
     data: {
       widgetId,
@@ -97,15 +37,11 @@ const createNotePayload: WidgetCreateHandler<'notes'> = async (
   });
 };
 
-const createChatPayload: WidgetCreateHandler<'chat'> = async (
+const createChatPayload: WidgetCreateHandler<WidgetType.CHAT> = async (
   tx,
   widgetId,
   payload,
 ) => {
-  if (!tx.chatMessage) {
-    return;
-  }
-
   await tx.chatMessage.create({
     data: {
       widgetId,
@@ -115,15 +51,11 @@ const createChatPayload: WidgetCreateHandler<'chat'> = async (
   });
 };
 
-const createMapPayload: WidgetCreateHandler<'map'> = async (
+const createMapPayload: WidgetCreateHandler<WidgetType.MAP> = async (
   tx,
   widgetId,
   payload,
 ) => {
-  if (!tx.mapPoint) {
-    return;
-  }
-
   await tx.mapPoint.create({
     data: {
       widgetId,
@@ -136,15 +68,11 @@ const createMapPayload: WidgetCreateHandler<'map'> = async (
   });
 };
 
-const createExpensePayload: WidgetCreateHandler<'expenses'> = async (
+const createExpensePayload: WidgetCreateHandler<WidgetType.EXPENSES> = async (
   tx,
   widgetId,
   payload,
 ) => {
-  if (!tx.expense) {
-    return;
-  }
-
   await tx.expense.create({
     data: {
       widgetId,
@@ -156,19 +84,19 @@ const createExpensePayload: WidgetCreateHandler<'expenses'> = async (
 };
 
 export const WIDGET_CREATE_HANDLERS: WidgetCreateHandlersMap = {
-  tasks: createTaskPayload,
-  notes: createNotePayload,
-  chat: createChatPayload,
-  map: createMapPayload,
-  expenses: createExpensePayload,
+  [WidgetType.TASKS]: createTaskPayload,
+  [WidgetType.NOTES]: createNotePayload,
+  [WidgetType.CHAT]: createChatPayload,
+  [WidgetType.MAP]: createMapPayload,
+  [WidgetType.EXPENSES]: createExpensePayload,
 };
 
 export async function applyWidgetTypePayload<K extends WidgetType>(
-  tx: TransactionClient,
+  tx: Prisma.TransactionClient,
   type: K,
   widgetId: string,
   payload: WidgetCreatePayloadMap[K],
-) {
+): Promise<void> {
   const handler = WIDGET_CREATE_HANDLERS[type];
   await handler(tx, widgetId, payload);
 }

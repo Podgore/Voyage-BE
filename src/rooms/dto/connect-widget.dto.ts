@@ -1,19 +1,20 @@
 import {
-  IsIn,
+  IsEnum,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
 } from 'class-validator';
-import type { WidgetType } from '../utils/widget-factory.util';
+import { WidgetType } from '../enums/widget-type.enum';
+import type { WidgetCreatePayloadMap } from '../types/widget-create-payload-map.type';
 
 export class ConnectWidgetDto {
   @IsString()
   @IsNotEmpty()
-  @IsIn(['chat', 'tasks', 'notes', 'map', 'expenses'])
+  @IsEnum(WidgetType)
   type!: WidgetType;
 
   @IsOptional()
   @IsObject()
-  payload?: Record<string, unknown>;
+  payload?: WidgetCreatePayloadMap[WidgetType];
 }

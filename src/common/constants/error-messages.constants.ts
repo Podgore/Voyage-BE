@@ -27,6 +27,6 @@ export const ERROR_MESSAGES = {
   NOT_ACTIVE_ROOM_MEMBER: 'User is not an active member of this room',
   OWNER_MUST_TRANSFER_OWNERSHIP:
     'Owner must transfer ownership before leaving the room',
-  WIDGET_ALREADY_CONNECTED: (type: string) =>
+  WIDGET_ALREADY_CONNECTED: (type: string): string =>
     `Widget type ${type} is already connected to this room`,
 } as const;

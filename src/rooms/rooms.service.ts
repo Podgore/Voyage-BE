@@ -11,6 +11,7 @@ import { PrismaErrorCode } from '../common/enums/prisma-error-code.enum';
 import { UpdateRoomData } from '../common/types/update-room-data.type';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
+import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { JoinRoomResponseDto } from './dto/join-room-response.dto';
@@ -19,15 +20,9 @@ import { RoomListResponseDto } from './dto/room-list-response.dto';
 import { RoomMemberResponseDto } from './dto/room-member-response.dto';
 import { RemoveMemberResponseDto } from './dto/remove-member-response.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
-import {
-  createWidgetConnection,
-  getWidgetTypeMeta,
-} from './utils/widget-factory.util';
+import { createWidgetConnection } from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
-import {
-  applyWidgetTypePayload,
-  type WidgetCreatePayloadMap,
-} from './utils/widget-create-dispatcher.util';
+import { applyWidgetTypePayload } from './utils/widget-create-dispatcher.util';
 
 @Injectable()
 export class RoomsService {
@@ -205,7 +200,10 @@ export class RoomsService {
     };
   }
 
-  async connectWidget(roomId: string, dto: ConnectWidgetDto) {
+  async connectWidget(
+    roomId: string,
+    dto: ConnectWidgetDto,
+  ): Promise<ConnectWidgetResponseDto> {
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
     });
@@ -222,41 +220,40 @@ export class RoomsService {
           data: widgetConnection,
         });
 
-        if (!dto.payload) {
-          return createdWidget;
+        if (dto.payload) {
+          await applyWidgetTypePayload(
+            tx,
+            dto.type,
+            createdWidget.id,
+            dto.payload,
+          );
         }
 
-        await applyWidgetTypePayload(
-          tx,
-          dto.type,
-          createdWidget.id,
-          dto.payload as WidgetCreatePayloadMap[typeof dto.type],
-        );
-
-        return createdWidget;
+        return {
+          id: createdWidget.id,
+          roomId: createdWidget.roomId,
+          type: createdWidget.type,
+          name: createdWidget.name,
+        };
       });
 
       return widget;
     } catch (error: unknown) {
-      const prismaError = error as { code?: string };
-
       if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        prismaError.code === PrismaErrorCode.UNIQUE_CONSTRAINT
+        (error instanceof Prisma.PrismaClientKnownRequestError ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            typeof error.code === 'string')) &&
+        error.code === PrismaErrorCode.UNIQUE_CONSTRAINT.toString()
       ) {
         throw new ConflictException(
-          ERROR_MESSAGES.WIDGET_ALREADY_CONNECTED(dto.type),
+          `Widget type ${dto.type} is already connected to this room`,
         );
       }
 
       throw error;
     }
-  }
-
-  private getWidgetDisplayName(type: string) {
-    return getWidgetTypeMeta(type).displayName;
   }
 
   async transferOwnership(
