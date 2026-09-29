@@ -21,6 +21,7 @@ import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { DisconnectWidgetResponseDto } from './dto/disconnect-widget-response.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
@@ -103,6 +104,17 @@ export class RoomsController {
     @Body() dto: ConnectWidgetDto,
   ): Promise<ConnectWidgetResponseDto> {
     return this.roomsService.connectWidget(roomId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @ApiParam({ name: 'roomId', type: String, required: true })
+  @ApiParam({ name: 'widgetId', type: String, required: true })
+  @Delete(':roomId/widgets/:widgetId')
+  disconnectWidget(
+    @Param('roomId') roomId: string,
+    @Param('widgetId') widgetId: string,
+  ): Promise<DisconnectWidgetResponseDto> {
+    return this.roomsService.disconnectWidget(roomId, widgetId);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
