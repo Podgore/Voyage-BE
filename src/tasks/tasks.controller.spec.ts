@@ -9,7 +9,7 @@ jest.mock('../prisma/prisma.service', () => ({
 
 describe('TasksController', () => {
   let controller: TasksController;
-  const tasksService = { create: jest.fn() };
+  const tasksService = { createTask: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -26,7 +26,7 @@ describe('TasksController', () => {
 
   it('creates a task for the authenticated room member', async () => {
     const task = { id: 'task-1', status: 'todo' };
-    tasksService.create.mockResolvedValue(task);
+    tasksService.createTask.mockResolvedValue(task);
 
     await expect(
       controller.create('room-1', { title: 'Book flights' }, {
@@ -34,7 +34,7 @@ describe('TasksController', () => {
       } as never),
     ).resolves.toBe(task);
 
-    expect(tasksService.create).toHaveBeenCalledWith('room-1', 'user-1', {
+    expect(tasksService.createTask).toHaveBeenCalledWith('room-1', 'user-1', {
       title: 'Book flights',
     });
   });

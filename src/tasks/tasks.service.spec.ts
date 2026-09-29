@@ -23,21 +23,21 @@ describe('TasksService', () => {
     service = module.get<TasksService>(TasksService);
   });
 
-  it('creates a todo task and assigns it to its creator', async () => {
+  it('creates a todo task without an assignee when none is provided', async () => {
     prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
     prisma.widget.findFirst.mockResolvedValue({ id: 'tasks-widget-1' });
     const task = { id: 'task-1', status: 'todo' };
     prisma.task.create.mockResolvedValue(task);
 
     await expect(
-      service.create('room-1', 'user-1', { title: 'Book flights' }),
+      service.createTask('room-1', 'user-1', { title: 'Book flights' }),
     ).resolves.toBe(task);
 
     expect(prisma.task.create).toHaveBeenCalledWith({
       data: {
         widgetId: 'tasks-widget-1',
         createdById: 'member-1',
-        assignedToId: 'member-1',
+        assignedToId: null,
         title: 'Book flights',
       },
     });
@@ -49,7 +49,7 @@ describe('TasksService', () => {
     prisma.widget.create.mockResolvedValue({ id: 'tasks-widget-1' });
     prisma.task.create.mockResolvedValue({ id: 'task-1' });
 
-    await service.create('room-1', 'user-1', { title: 'Pack bags' });
+    await service.createTask('room-1', 'user-1', { title: 'Pack bags' });
 
     expect(prisma.widget.create).toHaveBeenCalledWith({
       data: { roomId: 'room-1', type: 'tasks', name: 'Tasks' },
@@ -62,7 +62,7 @@ describe('TasksService', () => {
       .mockResolvedValueOnce(null);
 
     await expect(
-      service.create('room-1', 'user-1', {
+      service.createTask('room-1', 'user-1', {
         title: 'Pack bags',
         assignedToId: 'member-from-another-room',
       }),

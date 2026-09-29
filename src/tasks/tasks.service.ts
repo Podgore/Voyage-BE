@@ -10,7 +10,7 @@ const TASK_WIDGET_NAME = 'Tasks';
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(roomId: string, userId: string, dto: CreateTaskDto) {
+  async createTask(roomId: string, userId: string, dto: CreateTaskDto) {
     const creator = await this.prisma.roomMember.findFirst({
       where: { roomId, userId, leftAt: null },
     });
@@ -19,7 +19,7 @@ export class TasksService {
       throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
     }
 
-    let assignedToId = creator.id;
+    let assignedToId: string | null = null;
 
     if (dto.assignedToId) {
       const assignee = await this.prisma.roomMember.findFirst({

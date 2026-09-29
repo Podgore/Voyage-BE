@@ -19,6 +19,6 @@ export class TasksController {
     @Body() dto: CreateTaskDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.tasksService.create(roomId, req.user.userId, dto);
+    return this.tasksService.createTask(roomId, req.user.userId, dto);
   }
 }
