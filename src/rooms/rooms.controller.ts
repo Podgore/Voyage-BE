@@ -26,6 +26,7 @@ import { RemoveMemberDto } from './dto/remove-member.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
+import { WidgetResponseDto } from './dto/widget-response.dto';
 import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
@@ -73,6 +74,13 @@ export class RoomsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.roomsService.getRoomHub(roomId, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @ApiParam({ name: 'roomId', type: String, required: true })
+  @Get(':roomId/widgets')
+  findWidgets(@Param('roomId') roomId: string): Promise<WidgetResponseDto[]> {
+    return this.roomsService.findWidgets(roomId);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)

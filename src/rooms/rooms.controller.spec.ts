@@ -16,6 +16,7 @@ describe('RoomsController', () => {
     findAll: jest.fn(),
     findMembers: jest.fn(),
     getRoomHub: jest.fn(),
+    findWidgets: jest.fn(),
     updateRoom: jest.fn(),
     connectWidget: jest.fn(),
     transferOwnership: jest.fn(),
@@ -103,6 +104,14 @@ describe('RoomsController', () => {
       controller.getRoomHub('room-1', { user: { userId: 'user-1' } } as never),
     ).resolves.toBe(roomHub);
     expect(roomsService.getRoomHub).toHaveBeenCalledWith('room-1', 'user-1');
+  });
+
+  it('lists connected widgets for a room member', async () => {
+    const widgets = [{ id: 'widget-1', type: 'chat', name: 'Chat' }];
+    roomsService.findWidgets.mockResolvedValue(widgets);
+
+    await expect(controller.findWidgets('room-1')).resolves.toBe(widgets);
+    expect(roomsService.findWidgets).toHaveBeenCalledWith('room-1');
   });
 
   it('updates room data for the authenticated owner', async () => {
