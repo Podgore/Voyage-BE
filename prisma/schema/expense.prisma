@@ -10,5 +10,6 @@ model Expense {
   payer  RoomMember     @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
   shares ExpenseShare[]
 
+  @@index([widgetId])
   @@map("expenses")
 }
