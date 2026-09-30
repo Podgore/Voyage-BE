@@ -1,4 +1,5 @@
-import { WidgetType } from '../enums/widget-type.enum';
+import { Prisma } from '../../../generated/prisma/client';
+import { WidgetType } from '../../../generated/prisma/enums';
 
 export const WIDGET_DISPLAY_NAMES: Record<WidgetType, string> = {
   [WidgetType.CHAT]: 'Chat',
@@ -8,7 +9,10 @@ export const WIDGET_DISPLAY_NAMES: Record<WidgetType, string> = {
   [WidgetType.EXPENSES]: 'Expenses',
 };
 
-export function createWidgetConnection(roomId: string, type: WidgetType) {
+export function createWidgetConnection(
+  roomId: string,
+  type: WidgetType,
+): Prisma.WidgetUncheckedCreateInput {
   return {
     roomId,
     type,

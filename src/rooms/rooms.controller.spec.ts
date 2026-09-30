@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoomRole } from '../../generated/prisma/enums';
-import { WidgetType } from './enums/widget-type.enum';
+import { RoomRole, WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
@@ -108,7 +107,7 @@ describe('RoomsController', () => {
   });
 
   it('lists connected widgets for a room member', async () => {
-    const widgets = [{ id: 'widget-1', type: 'chat', name: 'Chat' }];
+    const widgets = [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }];
     roomsService.findWidgets.mockResolvedValue(widgets);
 
     await expect(controller.findWidgets('room-1')).resolves.toBe(widgets);
@@ -132,7 +131,7 @@ describe('RoomsController', () => {
     const result = {
       id: 'widget-1',
       roomId: 'room-1',
-      type: 'chat',
+      type: 'CHAT',
       name: 'Chat',
     };
     roomsService.connectWidget.mockResolvedValue(result);
@@ -142,7 +141,7 @@ describe('RoomsController', () => {
     ).resolves.toBe(result);
 
     expect(roomsService.connectWidget).toHaveBeenCalledWith('room-1', {
-      type: 'chat',
+      type: 'CHAT',
     });
   });
 

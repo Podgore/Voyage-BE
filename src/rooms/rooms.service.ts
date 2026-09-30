@@ -24,7 +24,7 @@ import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
 import { WidgetResponseDto } from './dto/widget-response.dto';
 import { createWidgetConnection } from './utils/widget-factory.util';
 import { generateInviteCode } from './utils/invite-code.util';
-import { WidgetType } from './enums/widget-type.enum';
+import { WidgetType } from '../../generated/prisma/enums';
 
 @Injectable()
 export class RoomsService {
@@ -281,7 +281,7 @@ export class RoomsService {
         throw new NotFoundException(ERROR_MESSAGES.WIDGET_NOT_FOUND);
       }
 
-      if (widget.type === WidgetType.EXPENSES.toString()) {
+      if (widget.type === WidgetType.EXPENSES) {
         const unpaidShare = await tx.expenseShare.findFirst({
           where: {
             isPaid: false,

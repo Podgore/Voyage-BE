@@ -1,8 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoomRole } from '../../generated/prisma/enums';
+import { RoomRole, WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
-import { WidgetType } from './enums/widget-type.enum';
 import { createWidgetConnection } from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
 
@@ -65,7 +64,7 @@ describe('widget factory', () => {
   it('creates a widget connection payload from a room and type', () => {
     expect(createWidgetConnection('room-1', WidgetType.TASKS)).toEqual({
       roomId: 'room-1',
-      type: 'tasks',
+      type: 'TASKS',
       name: 'Tasks',
     });
   });
@@ -229,7 +228,7 @@ describe('RoomsService', () => {
     prisma.room.findUnique.mockResolvedValue({
       id: 'room-1',
       name: 'Summer trip',
-      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+      widgets: [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }],
     });
     prisma.roomMember.findFirst.mockResolvedValue({ role: RoomRole.OWNER });
 
@@ -237,18 +236,18 @@ describe('RoomsService', () => {
       id: 'room-1',
       name: 'Summer trip',
       myRole: RoomRole.OWNER,
-      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+      widgets: [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }],
     });
   });
 
   it('returns only connected widget fields for a room', async () => {
     prisma.room.findUnique.mockResolvedValue({
       id: 'room-1',
-      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+      widgets: [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }],
     });
 
     await expect(service.findWidgets('room-1')).resolves.toEqual([
-      { id: 'widget-1', type: 'chat', name: 'Chat' },
+      { id: 'widget-1', type: 'CHAT', name: 'Chat' },
     ]);
 
     expect(prisma.room.findUnique).toHaveBeenCalledWith({
@@ -327,7 +326,7 @@ describe('RoomsService', () => {
     transaction.widget.create.mockResolvedValue({
       id: 'widget-1',
       roomId: 'room-1',
-      type: 'chat',
+      type: 'CHAT',
       name: 'Chat',
     });
 
@@ -336,14 +335,14 @@ describe('RoomsService', () => {
     ).resolves.toEqual({
       id: 'widget-1',
       roomId: 'room-1',
-      type: 'chat',
+      type: 'CHAT',
       name: 'Chat',
     });
 
     expect(transaction.widget.create).toHaveBeenCalledWith({
       data: {
         roomId: 'room-1',
-        type: 'chat',
+        type: 'CHAT',
         name: 'Chat',
       },
     });
