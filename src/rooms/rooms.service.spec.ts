@@ -1,8 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoomRole } from '../../generated/prisma/enums';
+import { RoomRole, WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
-import { WidgetType } from './enums/widget-type.enum';
 import { createWidgetConnection } from './utils/widget-factory.util';
 import { RoomsService } from './rooms.service';
 
@@ -38,6 +37,11 @@ type TransactionClient = {
   };
   widget: {
     create: jest.Mock;
+    findFirst: jest.Mock;
+    delete: jest.Mock;
+  };
+  expenseShare: {
+    findFirst: jest.Mock;
   };
   task?: {
     create: jest.Mock;
@@ -60,7 +64,7 @@ describe('widget factory', () => {
   it('creates a widget connection payload from a room and type', () => {
     expect(createWidgetConnection('room-1', WidgetType.TASKS)).toEqual({
       roomId: 'room-1',
-      type: 'tasks',
+      type: 'TASKS',
       name: 'Tasks',
     });
   });
@@ -88,7 +92,8 @@ describe('RoomsService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
-    widget: { create: jest.fn() },
+    widget: { create: jest.fn(), findFirst: jest.fn(), delete: jest.fn() },
+    expenseShare: { findFirst: jest.fn() },
     task: { create: jest.fn() },
     note: { create: jest.fn() },
     chatMessage: { create: jest.fn() },
@@ -223,7 +228,7 @@ describe('RoomsService', () => {
     prisma.room.findUnique.mockResolvedValue({
       id: 'room-1',
       name: 'Summer trip',
-      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+      widgets: [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }],
     });
     prisma.roomMember.findFirst.mockResolvedValue({ role: RoomRole.OWNER });
 
@@ -231,8 +236,37 @@ describe('RoomsService', () => {
       id: 'room-1',
       name: 'Summer trip',
       myRole: RoomRole.OWNER,
-      widgets: [{ id: 'widget-1', type: 'chat', name: 'Chat' }],
+      widgets: [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }],
     });
+  });
+
+  it('returns only connected widget fields for a room', async () => {
+    prisma.room.findUnique.mockResolvedValue({
+      id: 'room-1',
+      widgets: [{ id: 'widget-1', type: 'CHAT', name: 'Chat' }],
+    });
+
+    await expect(service.findWidgets('room-1')).resolves.toEqual([
+      { id: 'widget-1', type: 'CHAT', name: 'Chat' },
+    ]);
+
+    expect(prisma.room.findUnique).toHaveBeenCalledWith({
+      where: { id: 'room-1' },
+      select: {
+        id: true,
+        widgets: {
+          select: { id: true, type: true, name: true },
+        },
+      },
+    });
+  });
+
+  it('throws when listing widgets for a missing room', async () => {
+    prisma.room.findUnique.mockResolvedValue(null);
+
+    await expect(service.findWidgets('missing-room')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('updates the room name for the owner', async () => {
@@ -292,7 +326,7 @@ describe('RoomsService', () => {
     transaction.widget.create.mockResolvedValue({
       id: 'widget-1',
       roomId: 'room-1',
-      type: 'chat',
+      type: 'CHAT',
       name: 'Chat',
     });
 
@@ -301,14 +335,14 @@ describe('RoomsService', () => {
     ).resolves.toEqual({
       id: 'widget-1',
       roomId: 'room-1',
-      type: 'chat',
+      type: 'CHAT',
       name: 'Chat',
     });
 
     expect(transaction.widget.create).toHaveBeenCalledWith({
       data: {
         roomId: 'room-1',
-        type: 'chat',
+        type: 'CHAT',
         name: 'Chat',
       },
     });
@@ -324,6 +358,49 @@ describe('RoomsService', () => {
     await expect(
       service.connectWidget('room-1', { type: WidgetType.CHAT }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  describe('disconnectWidget', () => {
+    it('throws when the widget does not belong to the room', async () => {
+      transaction.widget.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.disconnectWidget('room-1', 'missing-widget'),
+      ).rejects.toThrow(NotFoundException);
+      expect(transaction.widget.delete).not.toHaveBeenCalled();
+    });
+
+    it('blocks an expenses widget with an unpaid share', async () => {
+      transaction.widget.findFirst.mockResolvedValue({
+        id: 'widget-1',
+        type: WidgetType.EXPENSES,
+      });
+      transaction.expenseShare.findFirst.mockResolvedValue({ id: 'share-1' });
+
+      await expect(
+        service.disconnectWidget('room-1', 'widget-1'),
+      ).rejects.toThrow(ConflictException);
+      expect(transaction.expenseShare.findFirst).toHaveBeenCalledWith({
+        where: { isPaid: false, expense: { widgetId: 'widget-1' } },
+        select: { id: true },
+      });
+      expect(transaction.widget.delete).not.toHaveBeenCalled();
+    });
+
+    it('deletes a widget after all expense shares are settled', async () => {
+      transaction.widget.findFirst.mockResolvedValue({
+        id: 'widget-1',
+        type: WidgetType.EXPENSES,
+      });
+      transaction.expenseShare.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.disconnectWidget('room-1', 'widget-1'),
+      ).resolves.toEqual({ widgetId: 'widget-1', isDeleted: true });
+      expect(transaction.widget.delete).toHaveBeenCalledWith({
+        where: { id: 'widget-1' },
+      });
+    });
   });
 
   it('transfers ownership to an active member', async () => {

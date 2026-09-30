@@ -1,7 +1,15 @@
+enum WidgetType {
+  CHAT
+  NOTES
+  TASKS
+  MAP
+  EXPENSES
+}
+
 model Widget {
   id       String @id @default(uuid())
   roomId   String @map("room_id")
-  type     String
+  type     WidgetType
   name     String
   settings Json?
 

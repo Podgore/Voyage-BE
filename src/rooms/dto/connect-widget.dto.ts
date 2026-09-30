@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { WidgetType } from '../enums/widget-type.enum';
+import { WidgetType } from '../../../generated/prisma/enums';
 
 export class ConnectWidgetDto {
   @IsString()

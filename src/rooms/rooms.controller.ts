@@ -21,11 +21,13 @@ import { RoomOwnerGuard } from '../rbac/guards/room-owner.guard';
 import { ConnectWidgetDto } from './dto/connect-widget.dto';
 import { ConnectWidgetResponseDto } from './dto/connect-widget-response.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { DisconnectWidgetResponseDto } from './dto/disconnect-widget-response.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { UpdateRoomResponseDto } from './dto/update-room-response.dto';
+import { WidgetResponseDto } from './dto/widget-response.dto';
 import { RoomsService } from './rooms.service';
 
 @ApiTags('Rooms')
@@ -75,6 +77,13 @@ export class RoomsController {
     return this.roomsService.getRoomHub(roomId, req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @ApiParam({ name: 'roomId', type: String, required: true })
+  @Get(':roomId/widgets')
+  findWidgets(@Param('roomId') roomId: string): Promise<WidgetResponseDto[]> {
+    return this.roomsService.findWidgets(roomId);
+  }
+
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
   @Put(':roomId')
   updateRoom(
@@ -95,6 +104,17 @@ export class RoomsController {
     @Body() dto: ConnectWidgetDto,
   ): Promise<ConnectWidgetResponseDto> {
     return this.roomsService.connectWidget(roomId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomOwnerGuard)
+  @ApiParam({ name: 'roomId', type: String, required: true })
+  @ApiParam({ name: 'widgetId', type: String, required: true })
+  @Delete(':roomId/widgets/:widgetId')
+  disconnectWidget(
+    @Param('roomId') roomId: string,
+    @Param('widgetId') widgetId: string,
+  ): Promise<DisconnectWidgetResponseDto> {
+    return this.roomsService.disconnectWidget(roomId, widgetId);
   }
 
   @UseGuards(JwtAuthGuard, RoomOwnerGuard)
