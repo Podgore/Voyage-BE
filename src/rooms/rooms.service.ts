@@ -299,7 +299,7 @@ export class RoomsService {
 
       await tx.widget.delete({ where: { id: widgetId } });
 
-      return { widgetId, deleted: true };
+      return { widgetId, isDeleted: true };
     });
   }
 

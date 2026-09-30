@@ -397,7 +397,7 @@ describe('RoomsService', () => {
 
       await expect(
         service.disconnectWidget('room-1', 'widget-1'),
-      ).resolves.toEqual({ widgetId: 'widget-1', deleted: true });
+      ).resolves.toEqual({ widgetId: 'widget-1', isDeleted: true });
       expect(transaction.widget.delete).toHaveBeenCalledWith({
         where: { id: 'widget-1' },
       });

@@ -1,4 +1,4 @@
 export class DisconnectWidgetResponseDto {
   widgetId!: string;
-  deleted!: boolean;
+  isDeleted!: boolean;
 }

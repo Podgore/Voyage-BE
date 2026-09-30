@@ -147,7 +147,7 @@ describe('RoomsController', () => {
   });
 
   it('disconnects a widget for the authenticated owner', async () => {
-    const result = { widgetId: 'widget-1', deleted: true };
+    const result = { widgetId: 'widget-1', isDeleted: true };
     roomsService.disconnectWidget.mockResolvedValue(result);
 
     await expect(
