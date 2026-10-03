@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RbacModule } from './rbac/rbac.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { TasksModule } from './tasks/tasks.module';
+import { WidgetsModule } from './widgets/widgets.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { TasksModule } from './tasks/tasks.module';
     }),
     RoomsModule,
     TasksModule,
+    WidgetsModule,
   ],
   controllers: [AppController],
   providers: [
