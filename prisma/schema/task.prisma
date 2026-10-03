@@ -2,15 +2,15 @@ model Task {
   id           String   @id @default(uuid())
   widgetId     String   @map("widget_id")
   createdById  String   @map("created_by_id")
-  assignedToId String   @map("assigned_to_id")
-  status       String   @default("pending")
+  assignedToId String?  @map("assigned_to_id")
+  status       String   @default("todo")
   title        String
   description  String?
   createdAt    DateTime @default(now()) @map("created_at")
 
   widget     Widget     @relation(fields: [widgetId], references: [id], onDelete: Cascade)
   createdBy  RoomMember @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  assignedTo RoomMember @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedTo RoomMember? @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
 
   @@index([widgetId])
   @@map("tasks")
