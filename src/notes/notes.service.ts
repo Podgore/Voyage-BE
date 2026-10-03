@@ -2,11 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { WidgetType } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
+import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 
 const NOTE_WIDGET_TYPE = WidgetType.NOTES;
-const NOTE_WIDGET_NAME = 'Notes';
 
 @Injectable()
 export class NotesService {
@@ -31,7 +31,7 @@ export class NotesService {
 
     if (!widget) {
       widget = await this.prisma.widget.create({
-        data: { roomId, type: NOTE_WIDGET_TYPE, name: NOTE_WIDGET_NAME },
+        data: createWidgetConnection(roomId, NOTE_WIDGET_TYPE),
       });
     }
 
@@ -48,6 +48,6 @@ export class NotesService {
       roomMemberId: note.roomMemberId,
       text: note.text,
       createdAt: note.createdAt.toISOString(),
-    };
+    } satisfies NoteResponseDto;
   }
 }
