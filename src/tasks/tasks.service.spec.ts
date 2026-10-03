@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from './tasks.service';
 
@@ -52,7 +53,7 @@ describe('TasksService', () => {
     await service.createTask('room-1', 'user-1', { title: 'Pack bags' });
 
     expect(prisma.widget.create).toHaveBeenCalledWith({
-      data: { roomId: 'room-1', type: 'tasks', name: 'Tasks' },
+      data: { roomId: 'room-1', type: WidgetType.TASKS, name: 'Tasks' },
     });
   });
 

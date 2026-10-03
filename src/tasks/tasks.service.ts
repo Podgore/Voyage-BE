@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
+import { WidgetType } from '../../generated/prisma/enums';
 import { CreateTaskDto } from './dto/create-task.dto';
 
-const TASK_WIDGET_TYPE = 'tasks';
+const TASK_WIDGET_TYPE = WidgetType.TASKS;
 const TASK_WIDGET_NAME = 'Tasks';
 
 @Injectable()
