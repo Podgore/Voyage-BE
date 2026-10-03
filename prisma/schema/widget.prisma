@@ -1,18 +1,26 @@
+enum WidgetType {
+  CHAT
+  NOTES
+  TASKS
+  MAP
+  EXPENSES
+}
+
 model Widget {
-  id       String  @id @default(uuid())
-  roomId   String  @map("room_id")
-  type     String
+  id       String @id @default(uuid())
+  roomId   String @map("room_id")
+  type     WidgetType
   name     String
   settings Json?
 
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-
-  expenses     Expense[]
+  room         Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
   tasks        Task[]
-  mapPoints    MapPoint[]
   notes        Note[]
   chatMessages ChatMessage[]
+  mapPoints    MapPoint[]
+  expenses     Expense[]
 
   @@unique([roomId, type])
+  @@index([roomId])
   @@map("widgets")
 }

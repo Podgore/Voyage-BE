@@ -11,5 +11,6 @@ model MapPoint {
   widget     Widget     @relation(fields: [widgetId], references: [id], onDelete: Cascade)
   roomMember RoomMember @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
 
+  @@index([widgetId])
   @@map("map_points")
 }
