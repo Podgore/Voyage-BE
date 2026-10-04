@@ -3,6 +3,7 @@ import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { WidgetType } from '../../generated/prisma/enums';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
 
 const TASK_WIDGET_TYPE = WidgetType.TASKS;
 const TASK_WIDGET_NAME = 'Tasks';
@@ -52,6 +53,39 @@ export class TasksService {
         title: dto.title,
         ...(dto.description !== undefined && { description: dto.description }),
       },
+    });
+  }
+
+  async updateTaskAssignee(
+    roomId: string,
+    taskId: string,
+    dto: UpdateTaskAssigneeDto,
+  ) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, widget: { roomId } },
+      select: { id: true },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found in this room');
+    }
+
+    let assignedToId: string | null = null;
+    if (dto.assignedToId) {
+      const assignee = await this.prisma.roomMember.findFirst({
+        where: { id: dto.assignedToId, roomId, leftAt: null },
+        select: { id: true },
+      });
+
+      if (!assignee) {
+        throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
+      }
+      assignedToId = assignee.id;
+    }
+
+    return this.prisma.task.update({
+      where: { id: task.id },
+      data: { assignedToId },
     });
   }
 }

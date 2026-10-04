@@ -1,9 +1,18 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
 import { TasksService } from './tasks.service';
 
 @ApiTags('Tasks')
@@ -20,5 +29,15 @@ export class TasksController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.tasksService.createTask(roomId, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Patch(':taskId/assignee')
+  updateAssignee(
+    @Param('roomId') roomId: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: UpdateTaskAssigneeDto,
+  ) {
+    return this.tasksService.updateTaskAssignee(roomId, taskId, dto);
   }
 }
