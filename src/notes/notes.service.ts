@@ -19,6 +19,9 @@ export class NotesService {
   ): Promise<NoteResponseDto> {
     const creator = await this.prisma.roomMember.findFirst({
       where: { roomId, userId, leftAt: null },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
 
     if (!creator) {
@@ -48,6 +51,35 @@ export class NotesService {
       roomMemberId: note.roomMemberId,
       text: note.text,
       createdAt: note.createdAt.toISOString(),
+      author: creator.user,
     } satisfies NoteResponseDto;
+  }
+
+  async findNotes(roomId: string): Promise<NoteResponseDto[]> {
+    const notes = await this.prisma.note.findMany({
+      where: {
+        widget: { roomId, type: NOTE_WIDGET_TYPE },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        roomMemberId: true,
+        text: true,
+        createdAt: true,
+        roomMember: {
+          select: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    return notes.map((note) => ({
+      id: note.id,
+      roomMemberId: note.roomMemberId,
+      text: note.text,
+      createdAt: note.createdAt.toISOString(),
+      author: note.roomMember.user,
+    }));
   }
 }
