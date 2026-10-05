@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
@@ -12,6 +20,12 @@ import { NotesService } from './notes.service';
 @Controller('rooms/:roomId/notes')
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Get()
+  findNotes(@Param('roomId') roomId: string): Promise<NoteResponseDto[]> {
+    return this.notesService.findNotes(roomId);
+  }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
   @Post()

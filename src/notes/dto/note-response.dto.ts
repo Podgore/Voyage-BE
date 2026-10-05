@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
+import { NoteAuthorResponseDto } from './note-author-response.dto';
 
 export class NoteResponseDto {
   @ApiProperty()
@@ -17,4 +18,7 @@ export class NoteResponseDto {
   @ApiProperty()
   @IsString()
   createdAt!: string;
+
+  @ApiProperty({ type: NoteAuthorResponseDto })
+  author!: NoteAuthorResponseDto;
 }

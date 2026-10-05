@@ -13,7 +13,7 @@ describe('NotesService', () => {
   const prisma = {
     roomMember: { findFirst: jest.fn() },
     widget: { findFirst: jest.fn(), create: jest.fn() },
-    note: { create: jest.fn() },
+    note: { create: jest.fn(), findMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -25,7 +25,10 @@ describe('NotesService', () => {
   });
 
   it('creates a note for an active room member', async () => {
-    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.roomMember.findFirst.mockResolvedValue({
+      id: 'member-1',
+      user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+    });
     prisma.widget.findFirst.mockResolvedValue({ id: 'notes-widget-1' });
     const note = {
       id: 'note-1',
@@ -44,6 +47,7 @@ describe('NotesService', () => {
       roomMemberId: 'member-1',
       text: 'Remember to confirm the venue',
       createdAt: '2026-10-04T10:00:00.000Z',
+      author: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
     });
 
     expect(prisma.note.create).toHaveBeenCalledWith({
@@ -56,7 +60,10 @@ describe('NotesService', () => {
   });
 
   it('creates a notes widget if the room does not have one', async () => {
-    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.roomMember.findFirst.mockResolvedValue({
+      id: 'member-1',
+      user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+    });
     prisma.widget.findFirst.mockResolvedValue(null);
     prisma.widget.create.mockResolvedValue({ id: 'notes-widget-1' });
     prisma.note.create.mockResolvedValue({
@@ -81,5 +88,43 @@ describe('NotesService', () => {
     await expect(
       service.createNote('room-1', 'user-1', { text: 'Bring the laptop' }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('lists room notes chronologically with their authors, including former members', async () => {
+    const createdAt = new Date('2026-10-04T10:00:00.000Z');
+    prisma.note.findMany.mockResolvedValue([
+      {
+        id: 'note-1',
+        roomMemberId: 'member-1',
+        text: 'Confirm the venue',
+        createdAt,
+        roomMember: {
+          leftAt: new Date('2026-10-03T10:00:00.000Z'),
+          user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+        },
+      },
+    ]);
+
+    await expect(service.findNotes('room-1')).resolves.toEqual([
+      {
+        id: 'note-1',
+        roomMemberId: 'member-1',
+        text: 'Confirm the venue',
+        createdAt: '2026-10-04T10:00:00.000Z',
+        author: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+    ]);
+
+    expect(prisma.note.findMany).toHaveBeenCalledWith({
+      where: { widget: { roomId: 'room-1', type: WidgetType.NOTES } },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        roomMember: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
   });
 });
