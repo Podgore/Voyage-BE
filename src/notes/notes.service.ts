@@ -61,9 +61,13 @@ export class NotesService {
         widget: { roomId, type: NOTE_WIDGET_TYPE },
       },
       orderBy: { createdAt: 'asc' },
-      include: {
+      select: {
+        id: true,
+        roomMemberId: true,
+        text: true,
+        createdAt: true,
         roomMember: {
-          include: {
+          select: {
             user: { select: { id: true, name: true, email: true } },
           },
         },

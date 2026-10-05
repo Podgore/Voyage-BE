@@ -118,9 +118,13 @@ describe('NotesService', () => {
     expect(prisma.note.findMany).toHaveBeenCalledWith({
       where: { widget: { roomId: 'room-1', type: WidgetType.NOTES } },
       orderBy: { createdAt: 'asc' },
-      include: {
+      select: {
+        id: true,
+        roomMemberId: true,
+        text: true,
+        createdAt: true,
         roomMember: {
-          include: {
+          select: {
             user: { select: { id: true, name: true, email: true } },
           },
         },
