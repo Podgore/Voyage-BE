@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { WidgetType } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
+import { UpdateNoteDto } from './dto/update-note.dto';
 
 const NOTE_WIDGET_TYPE = WidgetType.NOTES;
 
@@ -81,5 +86,52 @@ export class NotesService {
       createdAt: note.createdAt.toISOString(),
       author: note.roomMember.user,
     }));
+  }
+
+  async updateNote(
+    roomId: string,
+    noteId: string,
+    userId: string,
+    dto: UpdateNoteDto,
+  ): Promise<NoteResponseDto> {
+    const note = await this.prisma.note.findUnique({
+      where: { id: noteId },
+      select: {
+        id: true,
+        roomMemberId: true,
+        text: true,
+        createdAt: true,
+        roomMember: {
+          select: {
+            userId: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        widget: { select: { roomId: true } },
+      },
+    });
+
+    if (!note || note.widget.roomId !== roomId) {
+      throw new NotFoundException(ERROR_MESSAGES.NOTE_NOT_FOUND);
+    }
+
+    if (note.roomMember.userId !== userId) {
+      throw new ForbiddenException(ERROR_MESSAGES.NOTE_EDIT_FORBIDDEN);
+    }
+
+    const updatedNote = await this.prisma.note.update({
+      where: { id: noteId },
+      data: {
+        text: dto.text ?? note.text,
+      },
+    });
+
+    return {
+      id: updatedNote.id,
+      roomMemberId: updatedNote.roomMemberId,
+      text: updatedNote.text,
+      createdAt: updatedNote.createdAt.toISOString(),
+      author: note.roomMember.user,
+    } satisfies NoteResponseDto;
   }
 }

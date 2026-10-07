@@ -9,7 +9,11 @@ jest.mock('../prisma/prisma.service', () => ({
 
 describe('NotesController', () => {
   let controller: NotesController;
-  const notesService = { findNotes: jest.fn(), createNote: jest.fn() };
+  const notesService = {
+    findNotes: jest.fn(),
+    createNote: jest.fn(),
+    updateNote: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -46,6 +50,25 @@ describe('NotesController', () => {
 
     expect(notesService.createNote).toHaveBeenCalledWith(
       'room-1',
+      'user-1',
+      dto,
+    );
+  });
+
+  it('updates a note for the authenticated author', async () => {
+    const dto = { text: 'Updated venue details' };
+    const note = { id: 'note-1', ...dto };
+    notesService.updateNote.mockResolvedValue(note);
+
+    await expect(
+      controller.update('room-1', 'note-1', dto, {
+        user: { userId: 'user-1' },
+      } as never),
+    ).resolves.toBe(note);
+
+    expect(notesService.updateNote).toHaveBeenCalledWith(
+      'room-1',
+      'note-1',
       'user-1',
       dto,
     );
