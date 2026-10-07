@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
+import { UpdateNoteDto } from './dto/update-note.dto';
 import { NotesService } from './notes.service';
 
 @ApiTags('Notes')
@@ -35,5 +37,16 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
   ): Promise<NoteResponseDto> {
     return this.notesService.createNote(roomId, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Put(':noteId')
+  update(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Body() dto: UpdateNoteDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteResponseDto> {
+    return this.notesService.updateNote(roomId, noteId, req.user.userId, dto);
   }
 }

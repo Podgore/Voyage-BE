@@ -32,4 +32,6 @@ export const ERROR_MESSAGES = {
     'Widget cannot be disconnected while expense shares are unpaid',
   WIDGET_ALREADY_CONNECTED: (type: string): string =>
     `Widget type ${type} is already connected to this room`,
+  NOTE_NOT_FOUND: 'Note not found in this room',
+  NOTE_EDIT_FORBIDDEN: 'You can only edit your own note',
 } as const;
