@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsOptional, IsString } from 'class-validator';
+import { NoteAttachmentResponseDto } from './note-attachment-response.dto';
 
 export class NoteResponseDto {
   @ApiProperty()
@@ -10,11 +11,16 @@ export class NoteResponseDto {
   @IsString()
   roomMemberId!: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  text!: string;
+  text?: string | null;
 
   @ApiProperty()
   @IsString()
   createdAt!: string;
+
+  @ApiProperty({ type: [NoteAttachmentResponseDto], default: [] })
+  @IsArray()
+  attachments!: NoteAttachmentResponseDto[];
 }

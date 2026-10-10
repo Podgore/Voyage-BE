@@ -13,7 +13,8 @@ describe('NotesService', () => {
   const prisma = {
     roomMember: { findFirst: jest.fn() },
     widget: { findFirst: jest.fn(), create: jest.fn() },
-    note: { create: jest.fn() },
+    note: { create: jest.fn(), findFirst: jest.fn() },
+    noteAttachment: { create: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -44,6 +45,7 @@ describe('NotesService', () => {
       roomMemberId: 'member-1',
       text: 'Remember to confirm the venue',
       createdAt: '2026-10-04T10:00:00.000Z',
+      attachments: [],
     });
 
     expect(prisma.note.create).toHaveBeenCalledWith({
@@ -72,6 +74,64 @@ describe('NotesService', () => {
 
     expect(prisma.widget.create).toHaveBeenCalledWith({
       data: { roomId: 'room-1', type: WidgetType.NOTES, name: 'Notes' },
+    });
+  });
+
+  it('allows creating a note without text when an attachment will be added later', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.widget.findFirst.mockResolvedValue({ id: 'notes-widget-1' });
+    prisma.note.create.mockResolvedValue({
+      id: 'note-2',
+      roomMemberId: 'member-1',
+      text: '',
+      createdAt: new Date('2026-10-05T12:00:00.000Z'),
+    });
+
+    await expect(
+      service.createNote('room-1', 'user-1', { text: '' }),
+    ).resolves.toEqual({
+      id: 'note-2',
+      roomMemberId: 'member-1',
+      text: '',
+      createdAt: '2026-10-05T12:00:00.000Z',
+      attachments: [],
+    });
+  });
+
+  it('creates note attachment metadata for an existing note', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMemberId: 'member-1',
+      text: '',
+      widget: { roomId: 'room-1' },
+    });
+    prisma.noteAttachment.create.mockResolvedValue({
+      id: 'attachment-1',
+      noteId: 'note-2',
+      fileName: 'invoice.pdf',
+      mimeType: 'application/pdf',
+      size: 2048,
+      url: 'https://storage.local/invoice.pdf',
+      createdAt: new Date('2026-10-05T12:30:00.000Z'),
+    });
+
+    await expect(
+      service.createNoteAttachment('room-1', 'user-1', 'note-2', {
+        fileName: 'invoice.pdf',
+        mimeType: 'application/pdf',
+        size: 2048,
+        url: 'https://storage.local/invoice.pdf',
+        storageKey: 'notes/note-2/invoice.pdf',
+      }),
+    ).resolves.toEqual({
+      id: 'attachment-1',
+      noteId: 'note-2',
+      fileName: 'invoice.pdf',
+      mimeType: 'application/pdf',
+      size: 2048,
+      url: 'https://storage.local/invoice.pdf',
+      createdAt: '2026-10-05T12:30:00.000Z',
     });
   });
 
