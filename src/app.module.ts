@@ -9,8 +9,10 @@ import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './prisma/prisma.module';
 import { RbacModule } from './rbac/rbac.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { NotesModule } from './notes/notes.module';
 import { TasksModule } from './tasks/tasks.module';
 import { WidgetsModule } from './widgets/widgets.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -53,8 +55,10 @@ import { WidgetsModule } from './widgets/widgets.module';
       }),
     }),
     RoomsModule,
+    NotesModule,
     TasksModule,
     WidgetsModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [
