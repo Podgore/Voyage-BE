@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { NotesService } from './notes.service';
 
 jest.mock('../prisma/prisma.service', () => ({
@@ -16,11 +17,18 @@ describe('NotesService', () => {
     note: { create: jest.fn(), findFirst: jest.fn() },
     noteAttachment: { create: jest.fn() },
   };
+  const storageService = {
+    uploadFile: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotesService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        NotesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: StorageService, useValue: storageService },
+      ],
     }).compile();
     service = module.get<NotesService>(NotesService);
   });

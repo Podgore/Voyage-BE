@@ -12,6 +12,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { NotesModule } from './notes/notes.module';
 import { TasksModule } from './tasks/tasks.module';
 import { WidgetsModule } from './widgets/widgets.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     NotesModule,
     TasksModule,
     WidgetsModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [

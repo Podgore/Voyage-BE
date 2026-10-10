@@ -1,13 +1,30 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Param,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
-import { CreateNoteAttachmentDto } from './dto/create-note-attachment.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import { NotesService } from './notes.service';
+
+type UploadedNoteFile = {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+  size: number;
+};
 
 @ApiTags('Notes')
 @ApiBearerAuth()
@@ -26,18 +43,33 @@ export class NotesController {
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
   @Post(':noteId/attachments')
   createAttachment(
     @Param('roomId') roomId: string,
     @Param('noteId') noteId: string,
-    @Body() dto: CreateNoteAttachmentDto,
+    @UploadedFile() file: UploadedNoteFile | undefined,
     @Req() req: AuthenticatedRequest,
   ): Promise<NoteAttachmentResponseDto> {
-    return this.notesService.createNoteAttachment(
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    return this.notesService.uploadNoteAttachment(
       roomId,
       req.user.userId,
       noteId,
-      dto,
+      file,
     );
   }
 }
