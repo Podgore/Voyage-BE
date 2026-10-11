@@ -32,6 +32,7 @@ describe('NotesService', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     noteAttachment: {
       create: jest.fn(),
@@ -625,6 +626,51 @@ describe('NotesService', () => {
         text: "I am editing someone else's note",
       }),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('deletes a note and its attached storage objects for the author', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-1',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.note.delete.mockResolvedValue({
+      attachments: [
+        { storageKey: 'notes/note-1/first.pdf' },
+        { storageKey: 'notes/note-1/second.png' },
+      ],
+    });
+
+    await expect(
+      service.deleteNote('room-1', 'note-1', 'user-1'),
+    ).resolves.toBeUndefined();
+
+    expect(prisma.note.delete).toHaveBeenCalledWith({
+      where: { id: 'note-1' },
+      select: { attachments: { select: { storageKey: true } } },
+    });
+    expect(storageService.deleteFile).toHaveBeenCalledTimes(2);
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-1/first.pdf',
+    );
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-1/second.png',
+    );
+  });
+
+  it('does not delete another author’s note', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-2' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-1',
+      roomMember: { userId: 'user-1' },
+    });
+
+    await expect(
+      service.deleteNote('room-1', 'note-1', 'user-2'),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(prisma.note.delete).not.toHaveBeenCalled();
+    expect(storageService.deleteFile).not.toHaveBeenCalled();
   });
 
   it('filters notes by text, author, and date range while retaining chronological order', async () => {

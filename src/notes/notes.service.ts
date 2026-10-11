@@ -10,6 +10,7 @@ import { WidgetType } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import type { StorageUploadFile } from '../storage/types/storage-upload-file.type';
 import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { FindNotesQueryDto } from './dto/find-notes-query.dto';
@@ -17,7 +18,6 @@ import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-down
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
-import type { UploadedNoteFile } from './types/uploaded-note-file.type';
 
 const NOTE_WIDGET_TYPE = WidgetType.NOTES;
 
@@ -69,17 +69,12 @@ export class NotesService {
     roomId: string,
     userId: string,
     noteId: string,
-    file: UploadedNoteFile,
+    file: StorageUploadFile,
   ): Promise<NoteAttachmentResponseDto> {
     const note = await this.findNoteForAuthor(roomId, noteId, userId);
 
     const uploaded = await this.storageService.uploadFile(
-      {
-        buffer: file.buffer,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-      },
+      file,
       `notes/${noteId}`,
     );
 
@@ -106,7 +101,7 @@ export class NotesService {
     userId: string,
     noteId: string,
     attachmentId: string,
-    file: UploadedNoteFile,
+    file: StorageUploadFile,
   ): Promise<NoteAttachmentResponseDto> {
     const note = await this.findNoteForAuthor(roomId, noteId, userId);
     const attachment = await this.prisma.noteAttachment.findFirst({
@@ -123,12 +118,7 @@ export class NotesService {
     }
 
     const uploaded = await this.storageService.uploadFile(
-      {
-        buffer: file.buffer,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-      },
+      file,
       `notes/${note.id}`,
     );
 
@@ -356,6 +346,30 @@ export class NotesService {
       note.roomMember.user,
       note.attachments.map((attachment) =>
         NoteAttachmentResponseDto.fromEntity(attachment),
+      ),
+    );
+  }
+
+  async deleteNote(
+    roomId: string,
+    noteId: string,
+    userId: string,
+  ): Promise<void> {
+    const note = await this.findNoteForAuthor(roomId, noteId, userId);
+    const deletedNote = await this.prisma.note.delete({
+      where: { id: note.id },
+      select: {
+        attachments: { select: { storageKey: true } },
+      },
+    });
+
+    await Promise.all(
+      deletedNote.attachments.map((attachment) =>
+        this.cleanupStorageFile(
+          attachment.storageKey,
+          note.id,
+          'deleted with note',
+        ),
       ),
     );
   }

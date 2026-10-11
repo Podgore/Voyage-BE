@@ -13,6 +13,7 @@ describe('NotesController', () => {
     findNotes: jest.fn(),
     createNote: jest.fn(),
     updateNote: jest.fn(),
+    deleteNote: jest.fn(),
     uploadNoteAttachment: jest.fn(),
     replaceNoteAttachment: jest.fn(),
     deleteNoteAttachment: jest.fn(),
@@ -76,6 +77,22 @@ describe('NotesController', () => {
       'note-1',
       'user-1',
       dto,
+    );
+  });
+
+  it('deletes a note for the authenticated author', async () => {
+    notesService.deleteNote.mockResolvedValue(undefined);
+
+    await expect(
+      controller.delete('room-1', 'note-1', {
+        user: { userId: 'user-1' },
+      } as never),
+    ).resolves.toBeUndefined();
+
+    expect(notesService.deleteNote).toHaveBeenCalledWith(
+      'room-1',
+      'note-1',
+      'user-1',
     );
   });
 
