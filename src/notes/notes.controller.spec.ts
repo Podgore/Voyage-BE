@@ -24,13 +24,14 @@ describe('NotesController', () => {
     controller = module.get<NotesController>(NotesController);
   });
 
-  it('lists notes for the requested room', async () => {
+  it('lists notes with query filters for the requested room', async () => {
     const notes = [{ id: 'note-1', text: 'Confirm the venue' }];
+    const query = { search: 'venue' };
     notesService.findNotes.mockResolvedValue(notes);
 
-    await expect(controller.findNotes('room-1')).resolves.toBe(notes);
+    await expect(controller.findNotes('room-1', query)).resolves.toBe(notes);
 
-    expect(notesService.findNotes).toHaveBeenCalledWith('room-1');
+    expect(notesService.findNotes).toHaveBeenCalledWith('room-1', query);
   });
 
   it('creates a note for the authenticated room member', async () => {

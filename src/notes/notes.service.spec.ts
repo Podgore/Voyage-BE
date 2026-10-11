@@ -11,11 +11,18 @@ jest.mock('../prisma/prisma.service', () => ({
 
 describe('NotesService', () => {
   let service: NotesService;
+  const transaction = {
+    widget: { upsert: jest.fn() },
+    note: { create: jest.fn() },
+  };
   const prisma = {
     roomMember: { findFirst: jest.fn() },
+    $transaction: jest.fn(
+      async <T>(callback: (tx: typeof transaction) => Promise<T>) =>
+        callback(transaction),
+    ),
     widget: { findFirst: jest.fn(), create: jest.fn() },
     note: {
-      create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
@@ -42,14 +49,14 @@ describe('NotesService', () => {
       id: 'member-1',
       user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
     });
-    prisma.widget.findFirst.mockResolvedValue({ id: 'notes-widget-1' });
+    transaction.widget.upsert.mockResolvedValue({ id: 'notes-widget-1' });
     const note = {
       id: 'note-1',
       roomMemberId: 'member-1',
       text: 'Remember to confirm the venue',
       createdAt: new Date('2026-10-04T10:00:00.000Z'),
     };
-    prisma.note.create.mockResolvedValue(note);
+    transaction.note.create.mockResolvedValue(note);
 
     await expect(
       service.createNote('room-1', 'user-1', {
@@ -64,7 +71,7 @@ describe('NotesService', () => {
       attachments: [],
     });
 
-    expect(prisma.note.create).toHaveBeenCalledWith({
+    expect(transaction.note.create).toHaveBeenCalledWith({
       data: {
         widgetId: 'notes-widget-1',
         roomMemberId: 'member-1',
@@ -78,9 +85,8 @@ describe('NotesService', () => {
       id: 'member-1',
       user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
     });
-    prisma.widget.findFirst.mockResolvedValue(null);
-    prisma.widget.create.mockResolvedValue({ id: 'notes-widget-1' });
-    prisma.note.create.mockResolvedValue({
+    transaction.widget.upsert.mockResolvedValue({ id: 'notes-widget-1' });
+    transaction.note.create.mockResolvedValue({
       id: 'note-1',
       roomMemberId: 'member-1',
       text: 'Pack the passports',
@@ -91,8 +97,10 @@ describe('NotesService', () => {
       text: 'Pack the passports',
     });
 
-    expect(prisma.widget.create).toHaveBeenCalledWith({
-      data: { roomId: 'room-1', type: WidgetType.NOTES, name: 'Notes' },
+    expect(transaction.widget.upsert).toHaveBeenCalledWith({
+      where: { roomId_type: { roomId: 'room-1', type: WidgetType.NOTES } },
+      create: { roomId: 'room-1', type: WidgetType.NOTES, name: 'Notes' },
+      update: {},
     });
   });
 
@@ -101,8 +109,8 @@ describe('NotesService', () => {
       id: 'member-1',
       user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
     });
-    prisma.widget.findFirst.mockResolvedValue({ id: 'notes-widget-1' });
-    prisma.note.create.mockResolvedValue({
+    transaction.widget.upsert.mockResolvedValue({ id: 'notes-widget-1' });
+    transaction.note.create.mockResolvedValue({
       id: 'note-2',
       roomMemberId: 'member-1',
       text: '',
@@ -219,5 +227,43 @@ describe('NotesService', () => {
         },
       },
     });
+  });
+
+  it('filters notes by text, author, date range, and sort order', async () => {
+    prisma.note.findMany.mockResolvedValue([]);
+
+    await service.findNotes('room-1', {
+      search: 'venue',
+      roomMemberId: 'member-1',
+      createdAfter: '2026-10-01T00:00:00.000Z',
+      createdBefore: '2026-10-31T23:59:59.999Z',
+      sortOrder: 'desc',
+    });
+
+    expect(prisma.note.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          widget: { roomId: 'room-1', type: WidgetType.NOTES },
+          roomMemberId: 'member-1',
+          text: { contains: 'venue', mode: 'insensitive' },
+          createdAt: {
+            gte: new Date('2026-10-01T00:00:00.000Z'),
+            lte: new Date('2026-10-31T23:59:59.999Z'),
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
+  });
+
+  it('rejects an inverted note creation date range', async () => {
+    await expect(
+      service.findNotes('room-1', {
+        createdAfter: '2026-10-02T00:00:00.000Z',
+        createdBefore: '2026-10-01T00:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      'createdAfter must be earlier than or equal to createdBefore',
+    );
   });
 });

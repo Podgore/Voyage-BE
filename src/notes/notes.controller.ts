@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateNoteDto } from './dto/create-note.dto';
+import { FindNotesQueryDto } from './dto/find-notes-query.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import { NotesService } from './notes.service';
@@ -29,8 +31,11 @@ export class NotesController {
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
   @Get()
-  findNotes(@Param('roomId') roomId: string): Promise<NoteResponseDto[]> {
-    return this.notesService.findNotes(roomId);
+  findNotes(
+    @Param('roomId') roomId: string,
+    @Query() query: FindNotesQueryDto,
+  ): Promise<NoteResponseDto[]> {
+    return this.notesService.findNotes(roomId, query);
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)

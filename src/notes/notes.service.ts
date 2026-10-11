@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { WidgetType } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,6 +10,7 @@ import { StorageService } from '../storage/storage.service';
 import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
 import { CreateNoteAttachmentDto } from './dto/create-note-attachment.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
+import { FindNotesQueryDto } from './dto/find-notes-query.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import type { UploadedNoteFile } from './types/uploaded-note-file.type';
@@ -35,34 +40,32 @@ export class NotesService {
       throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
     }
 
-    let widget = await this.prisma.widget.findFirst({
-      where: { roomId, type: NOTE_WIDGET_TYPE },
-    });
-
-    if (!widget) {
-      widget = await this.prisma.widget.create({
-        data: createWidgetConnection(roomId, NOTE_WIDGET_TYPE),
+    return this.prisma.$transaction(async (transaction) => {
+      const widget = await transaction.widget.upsert({
+        where: { roomId_type: { roomId, type: NOTE_WIDGET_TYPE } },
+        create: createWidgetConnection(roomId, NOTE_WIDGET_TYPE),
+        update: {},
       });
-    }
 
-    const note = await this.prisma.note.create({
-      data: {
-        widgetId: widget.id,
-        roomMemberId: creator.id,
-        text: dto.text ?? '',
-      },
+      const note = await transaction.note.create({
+        data: {
+          widgetId: widget.id,
+          roomMemberId: creator.id,
+          text: dto.text ?? '',
+        },
+      });
+
+      const response: NoteResponseDto = {
+        id: note.id,
+        roomMemberId: note.roomMemberId,
+        text: note.text ?? null,
+        createdAt: note.createdAt.toISOString(),
+        author: creator.user,
+        attachments: [],
+      };
+
+      return response;
     });
-
-    const response: NoteResponseDto = {
-      id: note.id,
-      roomMemberId: note.roomMemberId,
-      text: note.text ?? null,
-      createdAt: note.createdAt.toISOString(),
-      author: creator.user,
-      attachments: [],
-    };
-
-    return response;
   }
 
   async createNoteAttachment(
@@ -166,12 +169,39 @@ export class NotesService {
     });
   }
 
-  async findNotes(roomId: string): Promise<NoteResponseDto[]> {
+  async findNotes(
+    roomId: string,
+    query: FindNotesQueryDto = {},
+  ): Promise<NoteResponseDto[]> {
+    if (
+      query.createdAfter &&
+      query.createdBefore &&
+      new Date(query.createdAfter) > new Date(query.createdBefore)
+    ) {
+      throw new BadRequestException(
+        'createdAfter must be earlier than or equal to createdBefore',
+      );
+    }
+
     const notes = await this.prisma.note.findMany({
       where: {
         widget: { roomId, type: NOTE_WIDGET_TYPE },
+        ...(query.roomMemberId && { roomMemberId: query.roomMemberId }),
+        ...(query.search && {
+          text: { contains: query.search, mode: 'insensitive' },
+        }),
+        ...((query.createdAfter || query.createdBefore) && {
+          createdAt: {
+            ...(query.createdAfter && {
+              gte: new Date(query.createdAfter),
+            }),
+            ...(query.createdBefore && {
+              lte: new Date(query.createdBefore),
+            }),
+          },
+        }),
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: query.sortOrder ?? 'asc' },
       select: {
         id: true,
         roomMemberId: true,
