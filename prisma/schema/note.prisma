@@ -2,12 +2,29 @@ model Note {
   id           String   @id @default(uuid())
   widgetId     String   @map("widget_id")
   roomMemberId String   @map("room_member_id")
-  text         String
+  text         String?  @db.Text
   createdAt    DateTime @default(now()) @map("created_at")
 
-  widget     Widget     @relation(fields: [widgetId], references: [id], onDelete: Cascade)
-  roomMember RoomMember @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
+  widget      Widget           @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  roomMember  RoomMember       @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
+  attachments NoteAttachment[]
 
   @@index([widgetId])
   @@map("notes")
+}
+
+model NoteAttachment {
+  id         String   @id @default(uuid())
+  noteId     String   @map("note_id")
+  fileName   String   @map("file_name")
+  mimeType   String   @map("mime_type")
+  size       Int
+  storageKey String   @map("storage_key")
+  url        String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@map("note_attachments")
 }

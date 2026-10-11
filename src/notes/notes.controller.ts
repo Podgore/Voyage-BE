@@ -1,19 +1,25 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateNoteDto } from './dto/create-note.dto';
+import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import { NotesService } from './notes.service';
+import type { UploadedNoteFile } from './types/uploaded-note-file.type';
 
 @ApiTags('Notes')
 @ApiBearerAuth()
@@ -35,5 +41,36 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
   ): Promise<NoteResponseDto> {
     return this.notesService.createNote(roomId, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @Post(':noteId/attachments')
+  createAttachment(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @UploadedFile() file: UploadedNoteFile | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteAttachmentResponseDto> {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    return this.notesService.uploadNoteAttachment(
+      roomId,
+      req.user.userId,
+      noteId,
+      file,
+    );
   }
 }
