@@ -13,6 +13,7 @@ describe('NotesController', () => {
     findNotes: jest.fn(),
     createNote: jest.fn(),
     updateNote: jest.fn(),
+    getAttachmentDownloadUrl: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -28,13 +29,14 @@ describe('NotesController', () => {
     controller = module.get<NotesController>(NotesController);
   });
 
-  it('lists notes for the requested room', async () => {
+  it('lists notes with query filters for the requested room', async () => {
     const notes = [{ id: 'note-1', text: 'Confirm the venue' }];
+    const query = { search: 'venue' };
     notesService.findNotes.mockResolvedValue(notes);
 
-    await expect(controller.findNotes('room-1')).resolves.toBe(notes);
+    await expect(controller.findNotes('room-1', query)).resolves.toBe(notes);
 
-    expect(notesService.findNotes).toHaveBeenCalledWith('room-1');
+    expect(notesService.findNotes).toHaveBeenCalledWith('room-1', query);
   });
 
   it('creates a note for the authenticated room member', async () => {
@@ -71,6 +73,31 @@ describe('NotesController', () => {
       'note-1',
       'user-1',
       dto,
+    );
+  });
+
+  it('returns a signed attachment URL for the authenticated room member', async () => {
+    const result = {
+      url: 'https://storage.local/signed-file',
+      expiresAt: '2026-10-11T12:05:00.000Z',
+    };
+    notesService.getAttachmentDownloadUrl.mockResolvedValue(result);
+    const request = { user: { userId: 'user-1' } } as never;
+
+    await expect(
+      controller.getAttachmentDownloadUrl(
+        'room-1',
+        'note-1',
+        'attachment-1',
+        request,
+      ),
+    ).resolves.toBe(result);
+
+    expect(notesService.getAttachmentDownloadUrl).toHaveBeenCalledWith(
+      'room-1',
+      'user-1',
+      'note-1',
+      'attachment-1',
     );
   });
 });

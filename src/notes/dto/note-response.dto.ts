@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, ValidateNested } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { NoteAttachmentResponseDto } from './note-attachment-response.dto';
 import { NoteAuthorResponseDto } from './note-author-response.dto';
 
 export class NoteResponseDto {
@@ -12,9 +13,10 @@ export class NoteResponseDto {
   @IsString()
   roomMemberId!: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  text!: string;
+  text?: string | null;
 
   @ApiProperty()
   @IsString()
@@ -24,4 +26,10 @@ export class NoteResponseDto {
   @ValidateNested()
   @Type(() => NoteAuthorResponseDto)
   author!: NoteAuthorResponseDto;
+
+  @ApiProperty({ type: [NoteAttachmentResponseDto], default: [] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NoteAttachmentResponseDto)
+  attachments!: NoteAttachmentResponseDto[];
 }
