@@ -1,24 +1,17 @@
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-export type StorageUploadFile = {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-  size: number;
-};
-
-export type StorageUploadResult = {
-  key: string;
-};
+import type { StorageUploadFile } from './types/storage-upload-file.type';
+import type { StorageUploadResult } from './types/storage-upload-result.type';
 
 const DOWNLOAD_URL_TTL_SECONDS = 300;
 const INLINE_PREVIEW_MIME_TYPES = new Set([
@@ -84,7 +77,7 @@ export class StorageService {
     await this.ensureBucket();
 
     const safeName = file.originalname.replace(/\s+/g, '-');
-    const key = `${folder}/${Date.now()}-${safeName}`;
+    const key = `${folder}/${randomUUID()}-${safeName}`;
 
     await this.s3.send(
       new PutObjectCommand({
@@ -96,6 +89,12 @@ export class StorageService {
     );
 
     return { key };
+  }
+
+  async deleteFile(key: string): Promise<void> {
+    await this.s3.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
   }
 
   async createDownloadUrl(

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { WidgetType } from '../../generated/prisma/enums';
@@ -8,7 +9,6 @@ import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
-import { CreateNoteAttachmentDto } from './dto/create-note-attachment.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { FindNotesQueryDto } from './dto/find-notes-query.dto';
 import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-download-url-response.dto';
@@ -20,6 +20,8 @@ const NOTE_WIDGET_TYPE = WidgetType.NOTES;
 
 @Injectable()
 export class NotesService {
+  private readonly logger = new Logger(NotesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
@@ -69,57 +71,6 @@ export class NotesService {
     });
   }
 
-  async createNoteAttachment(
-    roomId: string,
-    userId: string,
-    noteId: string,
-    dto: CreateNoteAttachmentDto,
-  ): Promise<NoteAttachmentResponseDto> {
-    const creator = await this.prisma.roomMember.findFirst({
-      where: { roomId, userId, leftAt: null },
-    });
-
-    if (!creator) {
-      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
-    }
-
-    const note = await this.prisma.note.findFirst({
-      where: {
-        id: noteId,
-        widget: { roomId },
-      },
-      select: {
-        id: true,
-        roomMemberId: true,
-      },
-    });
-
-    if (!note) {
-      throw new NotFoundException('Note not found in this room');
-    }
-
-    const attachment = await this.prisma.noteAttachment.create({
-      data: {
-        noteId: note.id,
-        fileName: dto.fileName,
-        mimeType: dto.mimeType,
-        size: dto.size,
-        storageKey: dto.storageKey,
-      },
-    });
-
-    const response: NoteAttachmentResponseDto = {
-      id: attachment.id,
-      noteId: attachment.noteId,
-      fileName: attachment.fileName,
-      mimeType: attachment.mimeType,
-      size: attachment.size,
-      createdAt: attachment.createdAt.toISOString(),
-    };
-
-    return response;
-  }
-
   async uploadNoteAttachment(
     roomId: string,
     userId: string,
@@ -159,12 +110,39 @@ export class NotesService {
       `notes/${noteId}`,
     );
 
-    return this.createNoteAttachment(roomId, userId, noteId, {
-      fileName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-      storageKey: uploaded.key,
-    });
+    try {
+      const attachment = await this.prisma.noteAttachment.create({
+        data: {
+          noteId: note.id,
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          storageKey: uploaded.key,
+        },
+      });
+
+      return {
+        id: attachment.id,
+        noteId: attachment.noteId,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+        createdAt: attachment.createdAt.toISOString(),
+      };
+    } catch (error: unknown) {
+      try {
+        await this.storageService.deleteFile(uploaded.key);
+      } catch (cleanupError: unknown) {
+        this.logger.error(
+          `Failed to clean up uploaded file for note ${noteId}`,
+          cleanupError instanceof Error
+            ? cleanupError.stack
+            : String(cleanupError),
+        );
+      }
+
+      throw error;
+    }
   }
 
   async getAttachmentDownloadUrl(

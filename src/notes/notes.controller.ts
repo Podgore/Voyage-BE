@@ -66,7 +66,9 @@ export class NotesController {
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

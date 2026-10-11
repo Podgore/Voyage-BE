@@ -30,6 +30,7 @@ describe('NotesService', () => {
   };
   const storageService = {
     uploadFile: jest.fn(),
+    deleteFile: jest.fn(),
     createDownloadUrl: jest.fn(),
   };
 
@@ -130,13 +131,14 @@ describe('NotesService', () => {
     });
   });
 
-  it('creates note attachment metadata for an existing note', async () => {
+  it('uploads a note attachment and persists its metadata', async () => {
     prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
     prisma.note.findFirst.mockResolvedValue({
       id: 'note-2',
       roomMemberId: 'member-1',
-      text: '',
-      widget: { roomId: 'room-1' },
+    });
+    storageService.uploadFile.mockResolvedValue({
+      key: 'notes/note-2/invoice.pdf',
     });
     prisma.noteAttachment.create.mockResolvedValue({
       id: 'attachment-1',
@@ -148,11 +150,11 @@ describe('NotesService', () => {
     });
 
     await expect(
-      service.createNoteAttachment('room-1', 'user-1', 'note-2', {
-        fileName: 'invoice.pdf',
-        mimeType: 'application/pdf',
+      service.uploadNoteAttachment('room-1', 'user-1', 'note-2', {
+        buffer: Buffer.from('pdf'),
+        originalname: 'invoice.pdf',
+        mimetype: 'application/pdf',
         size: 2048,
-        storageKey: 'notes/note-2/invoice.pdf',
       }),
     ).resolves.toEqual({
       id: 'attachment-1',
@@ -162,6 +164,42 @@ describe('NotesService', () => {
       size: 2048,
       createdAt: '2026-10-05T12:30:00.000Z',
     });
+
+    expect(prisma.roomMember.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.note.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.noteAttachment.create).toHaveBeenCalledWith({
+      data: {
+        noteId: 'note-2',
+        fileName: 'invoice.pdf',
+        mimeType: 'application/pdf',
+        size: 2048,
+        storageKey: 'notes/note-2/invoice.pdf',
+      },
+    });
+  });
+
+  it('deletes an uploaded object when persisting attachment metadata fails', async () => {
+    const databaseError = new Error('Database unavailable');
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({ id: 'note-2' });
+    storageService.uploadFile.mockResolvedValue({
+      key: 'notes/note-2/invoice.pdf',
+    });
+    prisma.noteAttachment.create.mockRejectedValue(databaseError);
+    storageService.deleteFile.mockResolvedValue(undefined);
+
+    await expect(
+      service.uploadNoteAttachment('room-1', 'user-1', 'note-2', {
+        buffer: Buffer.from('pdf'),
+        originalname: 'invoice.pdf',
+        mimetype: 'application/pdf',
+        size: 2048,
+      }),
+    ).rejects.toBe(databaseError);
+
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-2/invoice.pdf',
+    );
   });
 
   it('rejects an inactive or missing room member', async () => {
