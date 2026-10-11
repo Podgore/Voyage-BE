@@ -13,6 +13,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
+import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { TasksService } from './tasks.service';
 
 @ApiTags('Tasks')
@@ -39,5 +40,20 @@ export class TasksController {
     @Body() dto: UpdateTaskAssigneeDto,
   ) {
     return this.tasksService.updateTaskAssignee(roomId, taskId, dto);
+  }
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Patch(':taskId/status')
+  updateStatus(
+    @Param('roomId') roomId: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: UpdateTaskStatusDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.tasksService.updateTaskStatus(
+      roomId,
+      taskId,
+      req.user.userId,
+      dto,
+    );
   }
 }
