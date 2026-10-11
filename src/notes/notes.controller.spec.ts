@@ -13,6 +13,9 @@ describe('NotesController', () => {
     findNotes: jest.fn(),
     createNote: jest.fn(),
     updateNote: jest.fn(),
+    uploadNoteAttachment: jest.fn(),
+    replaceNoteAttachment: jest.fn(),
+    deleteNoteAttachment: jest.fn(),
     getAttachmentDownloadUrl: jest.fn(),
   };
 
@@ -94,6 +97,48 @@ describe('NotesController', () => {
     ).resolves.toBe(result);
 
     expect(notesService.getAttachmentDownloadUrl).toHaveBeenCalledWith(
+      'room-1',
+      'user-1',
+      'note-1',
+      'attachment-1',
+    );
+  });
+
+  it('replaces an attachment using its separate file contract', async () => {
+    const file = {
+      buffer: Buffer.from('new file'),
+      originalname: 'updated.pdf',
+      mimetype: 'application/pdf',
+      size: 8,
+    };
+    const attachment = { id: 'attachment-1', fileName: 'updated.pdf' };
+    notesService.replaceNoteAttachment.mockResolvedValue(attachment);
+
+    await expect(
+      controller.replaceAttachment('room-1', 'note-1', 'attachment-1', file, {
+        user: { userId: 'user-1' },
+      } as never),
+    ).resolves.toBe(attachment);
+
+    expect(notesService.replaceNoteAttachment).toHaveBeenCalledWith(
+      'room-1',
+      'user-1',
+      'note-1',
+      'attachment-1',
+      file,
+    );
+  });
+
+  it('deletes an attachment for the authenticated author', async () => {
+    notesService.deleteNoteAttachment.mockResolvedValue(undefined);
+
+    await expect(
+      controller.deleteAttachment('room-1', 'note-1', 'attachment-1', {
+        user: { userId: 'user-1' },
+      } as never),
+    ).resolves.toBeUndefined();
+
+    expect(notesService.deleteNoteAttachment).toHaveBeenCalledWith(
       'room-1',
       'user-1',
       'note-1',

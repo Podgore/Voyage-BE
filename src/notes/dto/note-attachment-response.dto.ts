@@ -2,6 +2,24 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, Min } from 'class-validator';
 
 export class NoteAttachmentResponseDto {
+  static fromEntity(attachment: {
+    id: string;
+    noteId: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    createdAt: Date;
+  }): NoteAttachmentResponseDto {
+    return {
+      id: attachment.id,
+      noteId: attachment.noteId,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      createdAt: attachment.createdAt.toISOString(),
+    };
+  }
+
   @ApiProperty()
   @IsString()
   id!: string;

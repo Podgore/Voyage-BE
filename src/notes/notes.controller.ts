@@ -2,7 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -108,6 +111,58 @@ export class NotesController {
       req.user.userId,
       noteId,
       file,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @Put(':noteId/attachments/:attachmentId')
+  replaceAttachment(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Param('attachmentId') attachmentId: string,
+    @UploadedFile() file: UploadedNoteFile | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteAttachmentResponseDto> {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    return this.notesService.replaceNoteAttachment(
+      roomId,
+      req.user.userId,
+      noteId,
+      attachmentId,
+      file,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Delete(':noteId/attachments/:attachmentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAttachment(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Param('attachmentId') attachmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.notesService.deleteNoteAttachment(
+      roomId,
+      req.user.userId,
+      noteId,
+      attachmentId,
     );
   }
 }
