@@ -104,18 +104,11 @@ export class NotesService {
     file: StorageUploadFile,
   ): Promise<NoteAttachmentResponseDto> {
     const note = await this.findNoteForAuthor(roomId, noteId, userId);
-    const attachment = await this.prisma.noteAttachment.findFirst({
-      where: {
-        id: attachmentId,
-        noteId: note.id,
-        note: { widget: { roomId } },
-      },
-      select: { id: true, storageKey: true, createdAt: true },
-    });
-
-    if (!attachment) {
-      throw new NotFoundException('Note attachment not found in this room');
-    }
+    const attachment = await this.findNoteAttachment(
+      roomId,
+      note.id,
+      attachmentId,
+    );
 
     const uploaded = await this.storageService.uploadFile(
       file,
@@ -163,18 +156,11 @@ export class NotesService {
     attachmentId: string,
   ): Promise<void> {
     const note = await this.findNoteForAuthor(roomId, noteId, userId);
-    const attachment = await this.prisma.noteAttachment.findFirst({
-      where: {
-        id: attachmentId,
-        noteId: note.id,
-        note: { widget: { roomId } },
-      },
-      select: { id: true, storageKey: true },
-    });
-
-    if (!attachment) {
-      throw new NotFoundException('Note attachment not found in this room');
-    }
+    const attachment = await this.findNoteAttachment(
+      roomId,
+      note.id,
+      attachmentId,
+    );
 
     const deleteResult = await this.prisma.noteAttachment.deleteMany({
       where: {
@@ -405,6 +391,27 @@ export class NotesService {
     }
 
     return { id: note.id };
+  }
+
+  private async findNoteAttachment(
+    roomId: string,
+    noteId: string,
+    attachmentId: string,
+  ): Promise<{ id: string; storageKey: string; createdAt: Date }> {
+    const attachment = await this.prisma.noteAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        noteId,
+        note: { widget: { roomId } },
+      },
+      select: { id: true, storageKey: true, createdAt: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Note attachment not found in this room');
+    }
+
+    return attachment;
   }
 
   private async cleanupStorageFile(
