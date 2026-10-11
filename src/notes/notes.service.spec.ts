@@ -1,4 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,10 +27,19 @@ describe('NotesService', () => {
     ),
     widget: { findFirst: jest.fn(), create: jest.fn() },
     note: {
+      create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
-    noteAttachment: { create: jest.fn(), findFirst: jest.fn() },
+    noteAttachment: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
   };
   const storageService = {
     uploadFile: jest.fn(),
@@ -136,6 +149,7 @@ describe('NotesService', () => {
     prisma.note.findFirst.mockResolvedValue({
       id: 'note-2',
       roomMemberId: 'member-1',
+      roomMember: { userId: 'user-1' },
     });
     storageService.uploadFile.mockResolvedValue({
       key: 'notes/note-2/invoice.pdf',
@@ -181,7 +195,10 @@ describe('NotesService', () => {
   it('deletes an uploaded object when persisting attachment metadata fails', async () => {
     const databaseError = new Error('Database unavailable');
     prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
-    prisma.note.findFirst.mockResolvedValue({ id: 'note-2' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
     storageService.uploadFile.mockResolvedValue({
       key: 'notes/note-2/invoice.pdf',
     });
@@ -200,6 +217,237 @@ describe('NotesService', () => {
     expect(storageService.deleteFile).toHaveBeenCalledWith(
       'notes/note-2/invoice.pdf',
     );
+  });
+
+  it('does not allow a non-author to add, replace, or delete note attachments', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-2' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
+    const file = {
+      buffer: Buffer.from('replacement'),
+      originalname: 'replacement.pdf',
+      mimetype: 'application/pdf',
+      size: 11,
+    };
+
+    await expect(
+      service.uploadNoteAttachment('room-1', 'user-2', 'note-2', file),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.replaceNoteAttachment(
+        'room-1',
+        'user-2',
+        'note-2',
+        'attachment-1',
+        file,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.deleteNoteAttachment(
+        'room-1',
+        'user-2',
+        'note-2',
+        'attachment-1',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(storageService.uploadFile).not.toHaveBeenCalled();
+    expect(prisma.noteAttachment.findFirst).not.toHaveBeenCalled();
+    expect(prisma.noteAttachment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('replaces an attachment and removes the old storage object', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.noteAttachment.findFirst.mockResolvedValue({
+      id: 'attachment-1',
+      storageKey: 'notes/note-2/old.pdf',
+      createdAt: new Date('2026-10-05T12:00:00.000Z'),
+    });
+    storageService.uploadFile.mockResolvedValue({
+      key: 'notes/note-2/new.pdf',
+    });
+    prisma.noteAttachment.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      service.replaceNoteAttachment(
+        'room-1',
+        'user-1',
+        'note-2',
+        'attachment-1',
+        {
+          buffer: Buffer.from('replacement'),
+          originalname: 'new.pdf',
+          mimetype: 'application/pdf',
+          size: 11,
+        },
+      ),
+    ).resolves.toEqual({
+      id: 'attachment-1',
+      noteId: 'note-2',
+      fileName: 'new.pdf',
+      mimeType: 'application/pdf',
+      size: 11,
+      createdAt: '2026-10-05T12:00:00.000Z',
+    });
+
+    expect(prisma.noteAttachment.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'attachment-1',
+        noteId: 'note-2',
+        storageKey: 'notes/note-2/old.pdf',
+      },
+      data: {
+        fileName: 'new.pdf',
+        mimeType: 'application/pdf',
+        size: 11,
+        storageKey: 'notes/note-2/new.pdf',
+      },
+    });
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-2/old.pdf',
+    );
+  });
+
+  it('cleans up the new object when replacing attachment metadata fails', async () => {
+    const databaseError = new Error('Database unavailable');
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.noteAttachment.findFirst.mockResolvedValue({
+      id: 'attachment-1',
+      storageKey: 'notes/note-2/old.pdf',
+    });
+    storageService.uploadFile.mockResolvedValue({
+      key: 'notes/note-2/new.pdf',
+    });
+    prisma.noteAttachment.updateMany.mockRejectedValue(databaseError);
+
+    await expect(
+      service.replaceNoteAttachment(
+        'room-1',
+        'user-1',
+        'note-2',
+        'attachment-1',
+        {
+          buffer: Buffer.from('replacement'),
+          originalname: 'new.pdf',
+          mimetype: 'application/pdf',
+          size: 11,
+        },
+      ),
+    ).rejects.toBe(databaseError);
+
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-2/new.pdf',
+    );
+    expect(storageService.deleteFile).not.toHaveBeenCalledWith(
+      'notes/note-2/old.pdf',
+    );
+  });
+
+  it('cleans up a replacement when the attachment changed concurrently', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.noteAttachment.findFirst.mockResolvedValue({
+      id: 'attachment-1',
+      storageKey: 'notes/note-2/old.pdf',
+      createdAt: new Date('2026-10-05T12:00:00.000Z'),
+    });
+    storageService.uploadFile.mockResolvedValue({
+      key: 'notes/note-2/new.pdf',
+    });
+    prisma.noteAttachment.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.replaceNoteAttachment(
+        'room-1',
+        'user-1',
+        'note-2',
+        'attachment-1',
+        {
+          buffer: Buffer.from('replacement'),
+          originalname: 'new.pdf',
+          mimetype: 'application/pdf',
+          size: 11,
+        },
+      ),
+    ).rejects.toThrow(ConflictException);
+
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-2/new.pdf',
+    );
+    expect(storageService.deleteFile).not.toHaveBeenCalledWith(
+      'notes/note-2/old.pdf',
+    );
+  });
+
+  it('deletes attachment metadata before cleaning up its storage object', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.noteAttachment.findFirst.mockResolvedValue({
+      id: 'attachment-1',
+      storageKey: 'notes/note-2/file.pdf',
+    });
+
+    prisma.noteAttachment.deleteMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      service.deleteNoteAttachment(
+        'room-1',
+        'user-1',
+        'note-2',
+        'attachment-1',
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(prisma.noteAttachment.deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: 'attachment-1',
+        noteId: 'note-2',
+        storageKey: 'notes/note-2/file.pdf',
+      },
+    });
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-2/file.pdf',
+    );
+  });
+
+  it('does not delete storage when the attachment changed concurrently', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-2',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.noteAttachment.findFirst.mockResolvedValue({
+      id: 'attachment-1',
+      storageKey: 'notes/note-2/old.pdf',
+    });
+    prisma.noteAttachment.deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.deleteNoteAttachment(
+        'room-1',
+        'user-1',
+        'note-2',
+        'attachment-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+
+    expect(storageService.deleteFile).not.toHaveBeenCalled();
   });
 
   it('rejects an inactive or missing room member', async () => {
@@ -315,6 +563,114 @@ describe('NotesService', () => {
         },
       },
     });
+  });
+
+  it('updates a note only when the authenticated user is the author', async () => {
+    prisma.note.findUnique.mockResolvedValue({
+      id: 'note-1',
+      roomMemberId: 'member-1',
+      text: 'Old text',
+      createdAt: new Date('2026-10-04T10:00:00.000Z'),
+      roomMember: {
+        userId: 'user-1',
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+      widget: { roomId: 'room-1' },
+      attachments: [],
+    });
+    prisma.note.update.mockResolvedValue({
+      id: 'note-1',
+      roomMemberId: 'member-1',
+      text: 'Updated text',
+      createdAt: new Date('2026-10-04T10:00:00.000Z'),
+      roomMember: {
+        userId: 'user-1',
+        user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      },
+    });
+
+    await expect(
+      service.updateNote('room-1', 'note-1', 'user-1', {
+        text: 'Updated text',
+      }),
+    ).resolves.toEqual({
+      id: 'note-1',
+      roomMemberId: 'member-1',
+      text: 'Updated text',
+      createdAt: '2026-10-04T10:00:00.000Z',
+      author: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      attachments: [],
+    });
+
+    expect(prisma.note.update).toHaveBeenCalledWith({
+      where: { id: 'note-1' },
+      data: { text: 'Updated text' },
+    });
+  });
+
+  it("forbids editing someone else's note even if the user is the room owner", async () => {
+    prisma.note.findUnique.mockResolvedValue({
+      id: 'note-1',
+      roomMemberId: 'member-1',
+      text: 'Other author text',
+      createdAt: new Date('2026-10-04T10:00:00.000Z'),
+      roomMember: {
+        userId: 'user-2',
+        user: { id: 'user-2', name: 'Bob', email: 'bob@example.com' },
+      },
+      widget: { roomId: 'room-1' },
+    });
+
+    await expect(
+      service.updateNote('room-1', 'note-1', 'user-1', {
+        text: "I am editing someone else's note",
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('deletes a note and its attached storage objects for the author', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-1',
+      roomMember: { userId: 'user-1' },
+    });
+    prisma.note.delete.mockResolvedValue({
+      attachments: [
+        { storageKey: 'notes/note-1/first.pdf' },
+        { storageKey: 'notes/note-1/second.png' },
+      ],
+    });
+
+    await expect(
+      service.deleteNote('room-1', 'note-1', 'user-1'),
+    ).resolves.toBeUndefined();
+
+    expect(prisma.note.delete).toHaveBeenCalledWith({
+      where: { id: 'note-1' },
+      select: { attachments: { select: { storageKey: true } } },
+    });
+    expect(storageService.deleteFile).toHaveBeenCalledTimes(2);
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-1/first.pdf',
+    );
+    expect(storageService.deleteFile).toHaveBeenCalledWith(
+      'notes/note-1/second.png',
+    );
+  });
+
+  it('does not delete another author’s note', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-2' });
+    prisma.note.findFirst.mockResolvedValue({
+      id: 'note-1',
+      roomMember: { userId: 'user-1' },
+    });
+
+    await expect(
+      service.deleteNote('room-1', 'note-1', 'user-2'),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(prisma.note.delete).not.toHaveBeenCalled();
+    expect(storageService.deleteFile).not.toHaveBeenCalled();
   });
 
   it('filters notes by text, author, and date range while retaining chronological order', async () => {
