@@ -26,10 +26,11 @@ describe('NotesService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
-    noteAttachment: { create: jest.fn() },
+    noteAttachment: { create: jest.fn(), findFirst: jest.fn() },
   };
   const storageService = {
     uploadFile: jest.fn(),
+    createDownloadUrl: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -143,7 +144,6 @@ describe('NotesService', () => {
       fileName: 'invoice.pdf',
       mimeType: 'application/pdf',
       size: 2048,
-      url: 'https://storage.local/invoice.pdf',
       createdAt: new Date('2026-10-05T12:30:00.000Z'),
     });
 
@@ -152,7 +152,6 @@ describe('NotesService', () => {
         fileName: 'invoice.pdf',
         mimeType: 'application/pdf',
         size: 2048,
-        url: 'https://storage.local/invoice.pdf',
         storageKey: 'notes/note-2/invoice.pdf',
       }),
     ).resolves.toEqual({
@@ -161,7 +160,6 @@ describe('NotesService', () => {
       fileName: 'invoice.pdf',
       mimeType: 'application/pdf',
       size: 2048,
-      url: 'https://storage.local/invoice.pdf',
       createdAt: '2026-10-05T12:30:00.000Z',
     });
   });
@@ -172,6 +170,59 @@ describe('NotesService', () => {
     await expect(
       service.createNote('room-1', 'user-1', { text: 'Bring the laptop' }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('creates a signed URL only for an attachment belonging to the room note', async () => {
+    const signedUrl = {
+      url: 'https://storage.local/signed-file',
+      expiresAt: '2026-10-11T12:05:00.000Z',
+    };
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.noteAttachment.findFirst.mockResolvedValue({
+      storageKey: 'notes/note-1/file.pdf',
+      fileName: 'file.pdf',
+      mimeType: 'application/pdf',
+    });
+    storageService.createDownloadUrl.mockResolvedValue(signedUrl);
+
+    await expect(
+      service.getAttachmentDownloadUrl(
+        'room-1',
+        'user-1',
+        'note-1',
+        'attachment-1',
+      ),
+    ).resolves.toEqual(signedUrl);
+
+    expect(prisma.noteAttachment.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'attachment-1',
+        noteId: 'note-1',
+        note: { widget: { roomId: 'room-1' } },
+      },
+      select: { storageKey: true, fileName: true, mimeType: true },
+    });
+    expect(storageService.createDownloadUrl).toHaveBeenCalledWith(
+      'notes/note-1/file.pdf',
+      'file.pdf',
+      'application/pdf',
+    );
+  });
+
+  it('does not sign a URL when the attachment is not in the requested room', async () => {
+    prisma.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+    prisma.noteAttachment.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.getAttachmentDownloadUrl(
+        'room-1',
+        'user-1',
+        'note-1',
+        'attachment-1',
+      ),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(storageService.createDownloadUrl).not.toHaveBeenCalled();
   });
 
   it('lists room notes chronologically with their authors, including former members', async () => {
@@ -221,7 +272,6 @@ describe('NotesService', () => {
             fileName: true,
             mimeType: true,
             size: true,
-            url: true,
             createdAt: true,
           },
         },
@@ -229,7 +279,7 @@ describe('NotesService', () => {
     });
   });
 
-  it('filters notes by text, author, date range, and sort order', async () => {
+  it('filters notes by text, author, and date range while retaining chronological order', async () => {
     prisma.note.findMany.mockResolvedValue([]);
 
     await service.findNotes('room-1', {
@@ -237,7 +287,6 @@ describe('NotesService', () => {
       roomMemberId: 'member-1',
       createdAfter: '2026-10-01T00:00:00.000Z',
       createdBefore: '2026-10-31T23:59:59.999Z',
-      sortOrder: 'desc',
     });
 
     expect(prisma.note.findMany).toHaveBeenCalledWith(
@@ -251,7 +300,7 @@ describe('NotesService', () => {
             lte: new Date('2026-10-31T23:59:59.999Z'),
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'asc' },
       }),
     );
   });

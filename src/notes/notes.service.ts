@@ -11,6 +11,7 @@ import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
 import { CreateNoteAttachmentDto } from './dto/create-note-attachment.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { FindNotesQueryDto } from './dto/find-notes-query.dto';
+import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-download-url-response.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import type { UploadedNoteFile } from './types/uploaded-note-file.type';
@@ -104,7 +105,6 @@ export class NotesService {
         mimeType: dto.mimeType,
         size: dto.size,
         storageKey: dto.storageKey,
-        url: dto.url,
       },
     });
 
@@ -114,7 +114,6 @@ export class NotesService {
       fileName: attachment.fileName,
       mimeType: attachment.mimeType,
       size: attachment.size,
-      url: attachment.url,
       createdAt: attachment.createdAt.toISOString(),
     };
 
@@ -165,8 +164,42 @@ export class NotesService {
       mimeType: file.mimetype,
       size: file.size,
       storageKey: uploaded.key,
-      url: uploaded.url,
     });
+  }
+
+  async getAttachmentDownloadUrl(
+    roomId: string,
+    userId: string,
+    noteId: string,
+    attachmentId: string,
+  ): Promise<NoteAttachmentDownloadUrlResponseDto> {
+    const member = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId, leftAt: null },
+      select: { id: true },
+    });
+
+    if (!member) {
+      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
+    }
+
+    const attachment = await this.prisma.noteAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        noteId,
+        note: { widget: { roomId } },
+      },
+      select: { storageKey: true, fileName: true, mimeType: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Note attachment not found in this room');
+    }
+
+    return this.storageService.createDownloadUrl(
+      attachment.storageKey,
+      attachment.fileName,
+      attachment.mimeType,
+    );
   }
 
   async findNotes(
@@ -201,7 +234,7 @@ export class NotesService {
           },
         }),
       },
-      orderBy: { createdAt: query.sortOrder ?? 'asc' },
+      orderBy: { createdAt: 'asc' },
       select: {
         id: true,
         roomMemberId: true,
@@ -219,7 +252,6 @@ export class NotesService {
             fileName: true,
             mimeType: true,
             size: true,
-            url: true,
             createdAt: true,
           },
         },
@@ -238,7 +270,6 @@ export class NotesService {
         fileName: attachment.fileName,
         mimeType: attachment.mimeType,
         size: attachment.size,
-        url: attachment.url,
         createdAt: attachment.createdAt.toISOString(),
       })),
     }));

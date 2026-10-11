@@ -25,9 +25,5 @@ export class NoteAttachmentResponseDto {
 
   @ApiProperty()
   @IsString()
-  url!: string;
-
-  @ApiProperty()
-  @IsString()
   createdAt!: string;
 }

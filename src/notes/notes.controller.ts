@@ -18,6 +18,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { FindNotesQueryDto } from './dto/find-notes-query.dto';
+import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-download-url-response.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import { NotesService } from './notes.service';
@@ -46,6 +47,22 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
   ): Promise<NoteResponseDto> {
     return this.notesService.createNote(roomId, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Get(':noteId/attachments/:attachmentId/url')
+  getAttachmentDownloadUrl(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Param('attachmentId') attachmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteAttachmentDownloadUrlResponseDto> {
+    return this.notesService.getAttachmentDownloadUrl(
+      roomId,
+      req.user.userId,
+      noteId,
+      attachmentId,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)

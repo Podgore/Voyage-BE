@@ -9,7 +9,11 @@ jest.mock('../prisma/prisma.service', () => ({
 
 describe('NotesController', () => {
   let controller: NotesController;
-  const notesService = { findNotes: jest.fn(), createNote: jest.fn() };
+  const notesService = {
+    findNotes: jest.fn(),
+    createNote: jest.fn(),
+    getAttachmentDownloadUrl: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -49,6 +53,31 @@ describe('NotesController', () => {
       'room-1',
       'user-1',
       dto,
+    );
+  });
+
+  it('returns a signed attachment URL for the authenticated room member', async () => {
+    const result = {
+      url: 'https://storage.local/signed-file',
+      expiresAt: '2026-10-11T12:05:00.000Z',
+    };
+    notesService.getAttachmentDownloadUrl.mockResolvedValue(result);
+    const request = { user: { userId: 'user-1' } } as never;
+
+    await expect(
+      controller.getAttachmentDownloadUrl(
+        'room-1',
+        'note-1',
+        'attachment-1',
+        request,
+      ),
+    ).resolves.toBe(result);
+
+    expect(notesService.getAttachmentDownloadUrl).toHaveBeenCalledWith(
+      'room-1',
+      'user-1',
+      'note-1',
+      'attachment-1',
     );
   });
 });

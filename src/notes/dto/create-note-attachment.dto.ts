@@ -16,8 +16,4 @@ export class CreateNoteAttachmentDto {
   @IsString()
   @IsNotEmpty()
   storageKey!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  url!: string;
 }

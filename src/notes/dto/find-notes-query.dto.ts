@@ -1,7 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -33,9 +32,4 @@ export class FindNotesQueryDto {
   @IsOptional()
   @IsDateString()
   createdBefore?: string;
-
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'asc' })
-  @IsOptional()
-  @IsIn(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc';
 }
