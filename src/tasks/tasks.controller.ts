@@ -41,6 +41,7 @@ export class TasksController {
   ) {
     return this.tasksService.updateTaskAssignee(roomId, taskId, dto);
   }
+
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
   @Patch(':taskId/status')
   updateStatus(
