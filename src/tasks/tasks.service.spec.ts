@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WidgetType } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { TasksService } from './tasks.service';
-import { TaskStatus } from './dto/update-task-status.dto';
+import { TaskStatus } from './dto/task-status.enum';
 
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
