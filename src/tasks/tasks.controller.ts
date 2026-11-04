@@ -12,7 +12,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { TasksService } from './tasks.service';
 
@@ -33,13 +33,13 @@ export class TasksController {
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
-  @Patch(':taskId/assignee')
-  updateAssignee(
+  @Patch(':taskId')
+  update(
     @Param('roomId') roomId: string,
     @Param('taskId') taskId: string,
-    @Body() dto: UpdateTaskAssigneeDto,
+    @Body() dto: UpdateTaskDto,
   ) {
-    return this.tasksService.updateTaskAssignee(roomId, taskId, dto);
+    return this.tasksService.updateTask(roomId, taskId, dto);
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)

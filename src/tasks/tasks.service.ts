@@ -7,7 +7,7 @@ import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { WidgetType } from '../../generated/prisma/enums';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskAssigneeDto } from './dto/update-task-assignee.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 
 const TASK_WIDGET_TYPE = WidgetType.TASKS;
@@ -21,34 +21,26 @@ export class TasksService {
     const creator = await this.prisma.roomMember.findFirst({
       where: { roomId, userId, leftAt: null },
     });
-
-    if (!creator) {
+    if (!creator)
       throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
-    }
 
     let assignedToId: string | null = null;
-
     if (dto.assignedToId) {
       const assignee = await this.prisma.roomMember.findFirst({
         where: { id: dto.assignedToId, roomId, leftAt: null },
       });
-
-      if (!assignee) {
+      if (!assignee)
         throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
-      }
-
       assignedToId = assignee.id;
     }
 
     let widget = await this.prisma.widget.findFirst({
       where: { roomId, type: TASK_WIDGET_TYPE },
     });
-
-    if (!widget) {
+    if (!widget)
       widget = await this.prisma.widget.create({
         data: { roomId, type: TASK_WIDGET_TYPE, name: TASK_WIDGET_NAME },
       });
-    }
 
     return this.prisma.task.create({
       data: {
@@ -61,19 +53,12 @@ export class TasksService {
     });
   }
 
-  async updateTaskAssignee(
-    roomId: string,
-    taskId: string,
-    dto: UpdateTaskAssigneeDto,
-  ) {
+  async updateTask(roomId: string, taskId: string, dto: UpdateTaskDto) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, widget: { roomId } },
       select: { id: true },
     });
-
-    if (!task) {
-      throw new NotFoundException('Task not found in this room');
-    }
+    if (!task) throw new NotFoundException('Task not found in this room');
 
     let assignedToId: string | null = null;
     if (dto.assignedToId) {
@@ -81,10 +66,8 @@ export class TasksService {
         where: { id: dto.assignedToId, roomId, leftAt: null },
         select: { id: true },
       });
-
-      if (!assignee) {
+      if (!assignee)
         throw new NotFoundException(ERROR_MESSAGES.TARGET_NOT_ACTIVE_MEMBER);
-      }
       assignedToId = assignee.id;
     }
 

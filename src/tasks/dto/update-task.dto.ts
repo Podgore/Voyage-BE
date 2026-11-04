@@ -1,7 +1,7 @@
 import { IsOptional, IsUUID } from 'class-validator';
 
-export class UpdateTaskAssigneeDto {
+export class UpdateTaskDto {
   @IsUUID()
   @IsOptional()
-  assignedToId!: string | null;
+  assignedToId?: string | null;
 }
