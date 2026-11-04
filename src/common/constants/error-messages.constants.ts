@@ -7,6 +7,8 @@ export const ERROR_MESSAGES = {
   USER_NOT_AUTHENTICATED: 'User is not authenticated',
   INVALID_CREDENTIALS: 'Invalid email or password',
   ROOM_ID_MISSING: 'roomId param is missing',
+  TASK_STATUS_FORBIDDEN:
+    'Only the task author or assignee can change its status',
   NOT_ROOM_MEMBER: (userId: string) =>
     `User with current id ${userId} is not a member of this room`,
   NOT_ROOM_OWNER: (userId: string) =>
