@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Param,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -15,22 +17,27 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { RoomMemberGuard } from '../rbac/guards/room-member.guard';
 import { CreateNoteDto } from './dto/create-note.dto';
+import { FindNotesQueryDto } from './dto/find-notes-query.dto';
+import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-download-url-response.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
 import { NotesService } from './notes.service';
-
-type UploadedNoteFile = {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-  size: number;
-};
+import type { UploadedNoteFile } from './types/uploaded-note-file.type';
 
 @ApiTags('Notes')
 @ApiBearerAuth()
 @Controller('rooms/:roomId/notes')
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Get()
+  findNotes(
+    @Param('roomId') roomId: string,
+    @Query() query: FindNotesQueryDto,
+  ): Promise<NoteResponseDto[]> {
+    return this.notesService.findNotes(roomId, query);
+  }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
   @Post()
@@ -43,7 +50,25 @@ export class NotesController {
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @Get(':noteId/attachments/:attachmentId/url')
+  getAttachmentDownloadUrl(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Param('attachmentId') attachmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteAttachmentDownloadUrlResponseDto> {
+    return this.notesService.getAttachmentDownloadUrl(
+      roomId,
+      req.user.userId,
+      noteId,
+      attachmentId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

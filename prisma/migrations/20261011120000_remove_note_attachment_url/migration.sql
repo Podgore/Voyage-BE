@@ -1,0 +1,1 @@
+ALTER TABLE "note_attachments" DROP COLUMN "url";

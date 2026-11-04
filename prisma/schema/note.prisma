@@ -20,7 +20,6 @@ model NoteAttachment {
   mimeType   String   @map("mime_type")
   size       Int
   storageKey String   @map("storage_key")
-  url        String
   createdAt  DateTime @default(now()) @map("created_at")
 
   note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
