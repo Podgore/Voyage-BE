@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -8,13 +10,14 @@ import { WidgetType } from '../../generated/prisma/enums';
 import { ERROR_MESSAGES } from '../common/constants/error-messages.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import type { StorageUploadFile } from '../storage/types/storage-upload-file.type';
 import { createWidgetConnection } from '../widgets/utils/widget-factory.util';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { FindNotesQueryDto } from './dto/find-notes-query.dto';
 import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-download-url-response.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
-import type { UploadedNoteFile } from './types/uploaded-note-file.type';
+import { UpdateNoteDto } from './dto/update-note.dto';
 
 const NOTE_WIDGET_TYPE = WidgetType.NOTES;
 
@@ -58,16 +61,7 @@ export class NotesService {
         },
       });
 
-      const response: NoteResponseDto = {
-        id: note.id,
-        roomMemberId: note.roomMemberId,
-        text: note.text ?? null,
-        createdAt: note.createdAt.toISOString(),
-        author: creator.user,
-        attachments: [],
-      };
-
-      return response;
+      return NoteResponseDto.fromValues(note, creator.user);
     });
   }
 
@@ -75,38 +69,12 @@ export class NotesService {
     roomId: string,
     userId: string,
     noteId: string,
-    file: UploadedNoteFile,
+    file: StorageUploadFile,
   ): Promise<NoteAttachmentResponseDto> {
-    const creator = await this.prisma.roomMember.findFirst({
-      where: { roomId, userId, leftAt: null },
-    });
-
-    if (!creator) {
-      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
-    }
-
-    const note = await this.prisma.note.findFirst({
-      where: {
-        id: noteId,
-        widget: { roomId },
-      },
-      select: {
-        id: true,
-        roomMemberId: true,
-      },
-    });
-
-    if (!note) {
-      throw new NotFoundException('Note not found in this room');
-    }
+    const note = await this.findNoteForAuthor(roomId, noteId, userId);
 
     const uploaded = await this.storageService.uploadFile(
-      {
-        buffer: file.buffer,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-      },
+      file,
       `notes/${noteId}`,
     );
 
@@ -121,28 +89,92 @@ export class NotesService {
         },
       });
 
-      return {
-        id: attachment.id,
-        noteId: attachment.noteId,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        size: attachment.size,
-        createdAt: attachment.createdAt.toISOString(),
-      };
+      return NoteAttachmentResponseDto.fromEntity(attachment);
     } catch (error: unknown) {
-      try {
-        await this.storageService.deleteFile(uploaded.key);
-      } catch (cleanupError: unknown) {
-        this.logger.error(
-          `Failed to clean up uploaded file for note ${noteId}`,
-          cleanupError instanceof Error
-            ? cleanupError.stack
-            : String(cleanupError),
-        );
-      }
-
+      await this.cleanupStorageFile(uploaded.key, noteId, 'uploaded');
       throw error;
     }
+  }
+
+  async replaceNoteAttachment(
+    roomId: string,
+    userId: string,
+    noteId: string,
+    attachmentId: string,
+    file: StorageUploadFile,
+  ): Promise<NoteAttachmentResponseDto> {
+    const note = await this.findNoteForAuthor(roomId, noteId, userId);
+    const attachment = await this.findNoteAttachment(
+      roomId,
+      note.id,
+      attachmentId,
+    );
+
+    const uploaded = await this.storageService.uploadFile(
+      file,
+      `notes/${note.id}`,
+    );
+
+    try {
+      const updateResult = await this.prisma.noteAttachment.updateMany({
+        where: {
+          id: attachment.id,
+          noteId: note.id,
+          storageKey: attachment.storageKey,
+        },
+        data: {
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          storageKey: uploaded.key,
+        },
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException('Note attachment changed concurrently');
+      }
+    } catch (error: unknown) {
+      await this.cleanupStorageFile(uploaded.key, note.id, 'replacement');
+      throw error;
+    }
+
+    await this.cleanupStorageFile(attachment.storageKey, note.id, 'replaced');
+    return NoteAttachmentResponseDto.fromEntity({
+      id: attachment.id,
+      noteId: note.id,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      createdAt: attachment.createdAt,
+    });
+  }
+
+  async deleteNoteAttachment(
+    roomId: string,
+    userId: string,
+    noteId: string,
+    attachmentId: string,
+  ): Promise<void> {
+    const note = await this.findNoteForAuthor(roomId, noteId, userId);
+    const attachment = await this.findNoteAttachment(
+      roomId,
+      note.id,
+      attachmentId,
+    );
+
+    const deleteResult = await this.prisma.noteAttachment.deleteMany({
+      where: {
+        id: attachment.id,
+        noteId: note.id,
+        storageKey: attachment.storageKey,
+      },
+    });
+
+    if (deleteResult.count !== 1) {
+      throw new ConflictException('Note attachment changed concurrently');
+    }
+
+    await this.cleanupStorageFile(attachment.storageKey, note.id, 'deleted');
   }
 
   async getAttachmentDownloadUrl(
@@ -236,20 +268,164 @@ export class NotesService {
       },
     });
 
-    return notes.map((note) => ({
-      id: note.id,
-      roomMemberId: note.roomMemberId,
-      text: note.text,
-      createdAt: note.createdAt.toISOString(),
-      author: note.roomMember.user,
-      attachments: note.attachments.map((attachment) => ({
-        id: attachment.id,
-        noteId: attachment.noteId,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        size: attachment.size,
-        createdAt: attachment.createdAt.toISOString(),
-      })),
-    }));
+    return notes.map((note) =>
+      NoteResponseDto.fromValues(
+        note,
+        note.roomMember.user,
+        note.attachments.map((attachment) =>
+          NoteAttachmentResponseDto.fromEntity(attachment),
+        ),
+      ),
+    );
+  }
+
+  async updateNote(
+    roomId: string,
+    noteId: string,
+    userId: string,
+    dto: UpdateNoteDto,
+  ): Promise<NoteResponseDto> {
+    const note = await this.prisma.note.findUnique({
+      where: { id: noteId },
+      select: {
+        id: true,
+        roomMemberId: true,
+        text: true,
+        createdAt: true,
+        roomMember: {
+          select: {
+            userId: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        widget: { select: { roomId: true } },
+        attachments: {
+          select: {
+            id: true,
+            noteId: true,
+            fileName: true,
+            mimeType: true,
+            size: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!note || note.widget.roomId !== roomId) {
+      throw new NotFoundException(ERROR_MESSAGES.NOTE_NOT_FOUND);
+    }
+
+    if (note.roomMember.userId !== userId) {
+      throw new ForbiddenException(ERROR_MESSAGES.NOTE_EDIT_FORBIDDEN);
+    }
+
+    const updatedNote = await this.prisma.note.update({
+      where: { id: noteId },
+      data: {
+        text: dto.text ?? note.text,
+      },
+    });
+
+    return NoteResponseDto.fromValues(
+      updatedNote,
+      note.roomMember.user,
+      note.attachments.map((attachment) =>
+        NoteAttachmentResponseDto.fromEntity(attachment),
+      ),
+    );
+  }
+
+  async deleteNote(
+    roomId: string,
+    noteId: string,
+    userId: string,
+  ): Promise<void> {
+    const note = await this.findNoteForAuthor(roomId, noteId, userId);
+    const deletedNote = await this.prisma.note.delete({
+      where: { id: note.id },
+      select: {
+        attachments: { select: { storageKey: true } },
+      },
+    });
+
+    await Promise.all(
+      deletedNote.attachments.map((attachment) =>
+        this.cleanupStorageFile(
+          attachment.storageKey,
+          note.id,
+          'deleted with note',
+        ),
+      ),
+    );
+  }
+
+  private async findNoteForAuthor(
+    roomId: string,
+    noteId: string,
+    userId: string,
+  ): Promise<{ id: string }> {
+    const member = await this.prisma.roomMember.findFirst({
+      where: { roomId, userId, leftAt: null },
+      select: { id: true },
+    });
+
+    if (!member) {
+      throw new NotFoundException(ERROR_MESSAGES.NOT_ACTIVE_ROOM_MEMBER);
+    }
+
+    const note = await this.prisma.note.findFirst({
+      where: { id: noteId, widget: { roomId } },
+      select: {
+        id: true,
+        roomMember: { select: { userId: true } },
+      },
+    });
+
+    if (!note) {
+      throw new NotFoundException(ERROR_MESSAGES.NOTE_NOT_FOUND);
+    }
+
+    if (note.roomMember.userId !== userId) {
+      throw new ForbiddenException(ERROR_MESSAGES.NOTE_EDIT_FORBIDDEN);
+    }
+
+    return { id: note.id };
+  }
+
+  private async findNoteAttachment(
+    roomId: string,
+    noteId: string,
+    attachmentId: string,
+  ): Promise<{ id: string; storageKey: string; createdAt: Date }> {
+    const attachment = await this.prisma.noteAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        noteId,
+        note: { widget: { roomId } },
+      },
+      select: { id: true, storageKey: true, createdAt: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Note attachment not found in this room');
+    }
+
+    return attachment;
+  }
+
+  private async cleanupStorageFile(
+    storageKey: string,
+    noteId: string,
+    action: string,
+  ): Promise<void> {
+    try {
+      await this.storageService.deleteFile(storageKey);
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to clean up ${action} file for note ${noteId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 }

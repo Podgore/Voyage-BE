@@ -2,12 +2,17 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   Req,
   UploadedFile,
+  applyDecorators,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -21,8 +26,27 @@ import { FindNotesQueryDto } from './dto/find-notes-query.dto';
 import { NoteAttachmentDownloadUrlResponseDto } from './dto/note-attachment-download-url-response.dto';
 import { NoteAttachmentResponseDto } from './dto/note-attachment-response.dto';
 import { NoteResponseDto } from './dto/note-response.dto';
+import { UpdateNoteDto } from './dto/update-note.dto';
 import { NotesService } from './notes.service';
-import type { UploadedNoteFile } from './types/uploaded-note-file.type';
+import type { StorageUploadFile } from '../storage/types/storage-upload-file.type';
+
+function UseNoteAttachmentUpload(): MethodDecorator {
+  return applyDecorators(
+    UseInterceptors(
+      FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+    ),
+    ApiConsumes('multipart/form-data'),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', format: 'binary' },
+        },
+        required: ['file'],
+      },
+    }),
+  );
+}
 
 @ApiTags('Notes')
 @ApiBearerAuth()
@@ -50,6 +74,28 @@ export class NotesController {
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Put(':noteId')
+  update(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Body() dto: UpdateNoteDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteResponseDto> {
+    return this.notesService.updateNote(roomId, noteId, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Delete(':noteId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  delete(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.notesService.deleteNote(roomId, noteId, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
   @Get(':noteId/attachments/:attachmentId/url')
   getAttachmentDownloadUrl(
     @Param('roomId') roomId: string,
@@ -66,24 +112,12 @@ export class NotesController {
   }
 
   @UseGuards(JwtAuthGuard, RoomMemberGuard)
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
-  )
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        file: { type: 'string', format: 'binary' },
-      },
-      required: ['file'],
-    },
-  })
+  @UseNoteAttachmentUpload()
   @Post(':noteId/attachments')
   createAttachment(
     @Param('roomId') roomId: string,
     @Param('noteId') noteId: string,
-    @UploadedFile() file: UploadedNoteFile | undefined,
+    @UploadedFile() file: StorageUploadFile | undefined,
     @Req() req: AuthenticatedRequest,
   ): Promise<NoteAttachmentResponseDto> {
     if (!file) {
@@ -95,6 +129,46 @@ export class NotesController {
       req.user.userId,
       noteId,
       file,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @UseNoteAttachmentUpload()
+  @Put(':noteId/attachments/:attachmentId')
+  replaceAttachment(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Param('attachmentId') attachmentId: string,
+    @UploadedFile() file: StorageUploadFile | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<NoteAttachmentResponseDto> {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    return this.notesService.replaceNoteAttachment(
+      roomId,
+      req.user.userId,
+      noteId,
+      attachmentId,
+      file,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoomMemberGuard)
+  @Delete(':noteId/attachments/:attachmentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAttachment(
+    @Param('roomId') roomId: string,
+    @Param('noteId') noteId: string,
+    @Param('attachmentId') attachmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.notesService.deleteNoteAttachment(
+      roomId,
+      req.user.userId,
+      noteId,
+      attachmentId,
     );
   }
 }

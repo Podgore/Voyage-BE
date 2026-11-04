@@ -5,6 +5,26 @@ import { NoteAttachmentResponseDto } from './note-attachment-response.dto';
 import { NoteAuthorResponseDto } from './note-author-response.dto';
 
 export class NoteResponseDto {
+  static fromValues(
+    note: {
+      id: string;
+      roomMemberId: string;
+      text: string | null;
+      createdAt: Date;
+    },
+    author: NoteAuthorResponseDto,
+    attachments: NoteAttachmentResponseDto[] = [],
+  ): NoteResponseDto {
+    return {
+      id: note.id,
+      roomMemberId: note.roomMemberId,
+      text: note.text,
+      createdAt: note.createdAt.toISOString(),
+      author,
+      attachments,
+    };
+  }
+
   @ApiProperty()
   @IsString()
   id!: string;
